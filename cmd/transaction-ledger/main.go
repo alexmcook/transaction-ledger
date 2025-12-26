@@ -2,51 +2,37 @@ package main
 
 import (
 	"context"
-	"os"
 	"fmt"
+	"os"
 	"net/http"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
+	"github.com/alexmcook/transaction-ledger/internal/db"
+	"github.com/alexmcook/transaction-ledger/internal/api"
+	"github.com/alexmcook/transaction-ledger/internal/service"
 )
 
 func main() {
+	ctx := context.Background()
+
 	err := godotenv.Load()
 	if err != nil {
-		fmt.Println("Error loading .env file")
+		fmt.Printf("Error loading .env file: %v\n", err)
 		return
 	}
 
-	connStr, ok := os.LookupEnv("DATABASE_URL")
-	if !ok {
-		fmt.Println("DATABASE_URL not set in environment")
-		return
-	}
-
-	pool, err := pgxpool.New(context.Background(), connStr)
+	pool, err := db.Connect(ctx, os.Getenv("DATABASE_URL"))
 	if err != nil {
-		fmt.Printf("Unable to create connection pool: %v\n", err)
+		fmt.Printf("Failed to connect to database: %v\n", err)
 		return
 	}
 	defer pool.Close()
 
-	var t1, t2 string
-	rows, err := pool.Query(context.Background(), "SELECT * FROM transaction_types")
-	if err != nil {
-		fmt.Printf("QueryRow failed: %v\n", err)
-		return
-	}
-	for rows.Next() {
-		if err := rows.Scan(&t1, &t2); err != nil {
-			fmt.Printf("Row scan failed: %v\n", err)
-			return
-		}
-		fmt.Println(t1, t2)
-	}
-
-
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-
+	store := db.NewStore(pool)
+	svc := service.New(service.Deps{
+		Users:    store.Users,
+		Accounts: store.Accounts,
 	})
-	
-	http.ListenAndServe(":8080", nil)
+
+	httpHandler := api.NewRouter(svc)
+	http.ListenAndServe(":8080", httpHandler)
 }
