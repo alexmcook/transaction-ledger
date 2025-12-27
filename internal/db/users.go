@@ -16,7 +16,9 @@ func NewUsersRepo(pool *pgxpool.Pool) *UsersRepo {
 
 func (r *UsersRepo) GetUser(ctx context.Context, id int64) (*model.User, error) {
 	var user model.User
-	err := r.pool.QueryRow(ctx, "SELECT id, created_at FROM accounts WHERE id = $1", id).Scan(&user.Id, &user.CreatedAt)
+	err := r.pool.
+		QueryRow(ctx, "SELECT id, created_at FROM accounts WHERE id = $1", id).
+		Scan(&user.Id, &user.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -25,7 +27,9 @@ func (r *UsersRepo) GetUser(ctx context.Context, id int64) (*model.User, error) 
 
 func (r *UsersRepo) CreateUser(ctx context.Context) (*model.User, error) {
 	var user model.User
-	err := r.pool.QueryRow(ctx, "INSERT INTO users DEFAULT VALUES RETURNING id, created_at").Scan(&user.Id, &user.CreatedAt)
+	err := r.pool.
+		QueryRow(ctx, "INSERT INTO users DEFAULT VALUES RETURNING id, created_at").
+		Scan(&user.Id, &user.CreatedAt)
 	if err != nil {
 		return nil, err
 	}

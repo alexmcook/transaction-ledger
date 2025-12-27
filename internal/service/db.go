@@ -15,9 +15,15 @@ type AccountStore interface {
 	CreateAccount(ctx context.Context, userId int64, initialBalance int64) (*model.Account, error)
 }
 
+type TransactionStore interface {
+	GetTransaction(ctx context.Context, id int64) (*model.Transaction, error)
+	CreateTransaction(ctx context.Context, accountId int64, amount int64) (*model.Transaction, error)
+}
+
 type Service struct {
-	Users    UserStore
-	Accounts AccountStore
+	Users       	UserStore
+	Accounts    	AccountStore
+	Transactions	TransactionStore
 }
 
 type Deps struct {

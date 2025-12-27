@@ -17,6 +17,9 @@ func registerRoutes(mux *http.ServeMux, svc *service.Service) {
 	mux.HandleFunc("/users", handleUsers(svc))
 	mux.HandleFunc("/users/", handleUsers(svc))
 	mux.HandleFunc("/accounts", handleAccounts(svc))
+	mux.HandleFunc("/accounts/", handleAccounts(svc))
+	mux.HandleFunc("/transactions", handleTransactions(svc))
+	mux.HandleFunc("/transactions/", handleTransactions(svc))
 }
 
 // @Summary API Health check
