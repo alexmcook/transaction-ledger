@@ -17,7 +17,7 @@ func NewUsersRepo(pool *pgxpool.Pool) *UsersRepo {
 func (r *UsersRepo) GetUser(ctx context.Context, id int64) (*model.User, error) {
 	var user model.User
 	err := r.pool.
-		QueryRow(ctx, "SELECT id, created_at FROM accounts WHERE id = $1", id).
+		QueryRow(ctx, "SELECT id, created_at FROM users WHERE id = $1", id).
 		Scan(&user.Id, &user.CreatedAt)
 	if err != nil {
 		return nil, err
