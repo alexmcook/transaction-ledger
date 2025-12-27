@@ -14,24 +14,13 @@ func NewAccountsRepo(pool *pgxpool.Pool) *AccountsRepo {
 	return &AccountsRepo{pool: pool}
 }
 
-func (r *AccountsRepo) GetUserAccounts(ctx context.Context, userId int64) ([]*model.Account, error) {
-	rows, err := r.pool.Query(ctx, "SELECT id, user_id, balance, created_at FROM accounts WHERE user_id = $1", userId)
+func (r *AccountsRepo) GetAccount(ctx context.Context, id int64) (*model.Account, error) {
+	var account model.Account
+	err := r.pool.QueryRow(ctx, "SELECT id, user_id, balance, created_at FROM accounts WHERE id = $1", id).Scan(&account.Id, &account.UserId, &account.Balance, &account.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	var accounts []*model.Account
-
-	var account model.Account
-	for rows.Next() {
-		if err := rows.Scan(&account.Id, &account.UserId, &account.Balance, &account.CreatedAt); err != nil {
-			return nil, err
-		}
-		accounts = append(accounts, &account)
-	}
-
-	return accounts, nil
+	return &account, nil
 }
 
 func (r *AccountsRepo) CreateAccount(ctx context.Context, userId int64, initialBalance int64) (*model.Account, error) {

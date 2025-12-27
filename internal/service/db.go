@@ -11,7 +11,7 @@ type UserStore interface {
 }
 
 type AccountStore interface {
-	GetUserAccounts(ctx context.Context, userId int64) ([]*model.Account, error)
+	GetAccount(ctx context.Context, id int64) (*model.Account, error)
 	CreateAccount(ctx context.Context, userId int64, initialBalance int64) (*model.Account, error)
 }
 
