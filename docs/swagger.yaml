@@ -1,0 +1,52 @@
+basePath: /
+host: localhost:8080
+info:
+  contact: {}
+  description: Transaction Ledger API for managing users and accounts
+  title: Transaction Ledger API
+  version: 0.1.0
+paths:
+  /accounts:
+    post:
+      description: Creates a new account for a user
+      produces:
+      - text/plain
+      responses:
+        "201":
+          description: Account created with ID
+          schema:
+            type: string
+        "500":
+          description: Failed to create account
+          schema:
+            type: string
+      summary: Create a new account
+  /health:
+    get:
+      description: Returns 200 OK if the API is running
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: API Health check
+  /users:
+    post:
+      description: Creates a new user in the system
+      produces:
+      - text/plain
+      responses:
+        "201":
+          description: User created with ID
+          schema:
+            type: string
+        "500":
+          description: Failed to create user
+          schema:
+            type: string
+      summary: Create a new user
+schemes:
+- http
+swagger: "2.0"

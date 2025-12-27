@@ -1,3 +1,9 @@
+// @title Transaction Ledger API
+// @version 0.1.0
+// @description Transaction Ledger API for managing users and accounts
+// @host localhost:8080
+// @BasePath /
+// @schemes http
 package main
 
 import (
