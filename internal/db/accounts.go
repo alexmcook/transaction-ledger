@@ -40,7 +40,7 @@ func (r *AccountsRepo) CreateAccount(ctx context.Context, userId uuid.UUID, init
 	account.Balance = initialBalance
 	account.CreatedAt = time.Now().UnixMilli()
 
-	_, err = r.pool.Exec(ctx, "INSERT INTO accounts (id, user_id, balance, created_at) VALUES ($1, $2, $3)", account.Id, account.UserId, account.Balance, account.CreatedAt)
+	_, err = r.pool.Exec(ctx, "INSERT INTO accounts (id, user_id, balance, created_at) VALUES ($1, $2, $3, $4)", account.Id, account.UserId, account.Balance, account.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
