@@ -7,10 +7,9 @@ import (
 	"net/http"
 	"strings"
 	"github.com/google/uuid"
-	"github.com/alexmcook/transaction-ledger/internal/service"
 )
 
-func handleTransactions(svc *service.Service) http.HandlerFunc {
+func (s *Server) handleTransactions() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		p := strings.Trim(r.URL.Path, "/")
 		parts := strings.Split(p, "/")
@@ -22,10 +21,10 @@ func handleTransactions(svc *service.Service) http.HandlerFunc {
 			}
 			// Extract transaction ID from URL
 			r.SetPathValue("transactionId", parts[1])
-			handleGetTransaction(svc)(w, r)
+			s.handleGetTransaction()(w, r)
 			return
 		case http.MethodPost:
-			handleCreateTransaction(svc)(w, r)
+			s.handleCreateTransaction()(w, r)
 			return
 		default:
 			http.Error(w, "Not Found", http.StatusNotFound)
@@ -34,7 +33,7 @@ func handleTransactions(svc *service.Service) http.HandlerFunc {
 	}
 }
 
-func handleGetTransaction(svc *service.Service) http.HandlerFunc {
+func (s *Server) handleGetTransaction() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		transactionId, err := uuid.Parse(r.PathValue("transactionId"))
 		if err != nil {
@@ -42,7 +41,7 @@ func handleGetTransaction(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		transaction, err := svc.Transactions.GetTransaction(r.Context(), transactionId)
+		transaction, err := s.svc.Transactions.GetTransaction(r.Context(), transactionId)
 		if err != nil {
 			http.Error(w, "Transaction not found", http.StatusNotFound)
 			return
@@ -53,7 +52,7 @@ func handleGetTransaction(svc *service.Service) http.HandlerFunc {
 	}
 }
 
-func handleCreateTransaction(svc *service.Service) http.HandlerFunc {
+func (s *Server) handleCreateTransaction() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		type Payload struct {
 			AccountId uuid.UUID `json:"accountId"`
@@ -75,7 +74,7 @@ func handleCreateTransaction(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		transaction, err := svc.Transactions.CreateTransaction(r.Context(), p.AccountId, p.Type, p.Amount)
+		transaction, err := s.svc.Transactions.CreateTransaction(r.Context(), p.AccountId, p.Type, p.Amount)
 		if err != nil {
 			http.Error(w, "Failed to create transaction: " + err.Error(), http.StatusInternalServerError)
 			return

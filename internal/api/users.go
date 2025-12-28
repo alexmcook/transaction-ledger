@@ -5,10 +5,9 @@ import (
 	"net/http"
 	"strings"
 	"github.com/google/uuid"
-	"github.com/alexmcook/transaction-ledger/internal/service"
 )
 
-func handleUsers(svc *service.Service) http.HandlerFunc {
+func (s *Server) handleUsers() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		p := strings.Trim(r.URL.Path, "/")
 		parts := strings.Split(p, "/")
@@ -20,10 +19,10 @@ func handleUsers(svc *service.Service) http.HandlerFunc {
 			}
 			// Extract user ID from URL
 			r.SetPathValue("userId", parts[1])
-		  handleGetUser(svc)(w,r)
+		  s.handleGetUser()(w,r)
 			return
 		case http.MethodPost:
-			handleCreateUser(svc)(w, r)
+			s.handleCreateUser()(w, r)
 			return
 		default:
 			http.Error(w, "Not Found", http.StatusNotFound)
@@ -40,7 +39,7 @@ func handleUsers(svc *service.Service) http.HandlerFunc {
 // @Failure 400 {string} string "Invalid user ID"
 // @Failure 404 {string} string "User not found"
 // @Router /users/{id} [get]
-func handleGetUser(svc *service.Service) http.HandlerFunc {
+func (s *Server) handleGetUser() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userId, err := uuid.Parse(r.PathValue("userId"))
 
@@ -49,7 +48,7 @@ func handleGetUser(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		user, err := svc.Users.GetUser(r.Context(), userId)
+		user, err := s.svc.Users.GetUser(r.Context(), userId)
 		if err != nil {
 			http.Error(w, "User not found", http.StatusNotFound)
 			return
@@ -65,9 +64,9 @@ func handleGetUser(svc *service.Service) http.HandlerFunc {
 // @Success 201 {string} string "User created with ID"
 // @Failure 500 {string} string "Failed to create user"
 // @Router /users [post]
-func handleCreateUser(svc *service.Service) http.HandlerFunc {
+func (s *Server) handleCreateUser() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		user, err := svc.Users.CreateUser(r.Context())
+		user, err := s.svc.Users.CreateUser(r.Context())
 		if err != nil {
 			http.Error(w, "Failed to create user", http.StatusInternalServerError)
 			return

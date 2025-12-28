@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/alexmcook/transaction-ledger/internal/service"
 	"github.com/alexmcook/transaction-ledger/internal/model"
+	"github.com/alexmcook/transaction-ledger/internal/logger"
 )
 
 type MockTransactionStore struct{}
@@ -43,7 +44,12 @@ func TestHandleCreateTransaction(t *testing.T) {
 		Transactions: &MockTransactionStore{},
 	}
 
-	handler := handleCreateTransaction(svc)
+	s := &Server{
+		logger: logger.Init(false),
+		svc: svc,
+	}
+
+	handler := s.handleCreateTransaction()
 	handler(w, req)
 
 	resp := w.Result()
@@ -67,7 +73,12 @@ func TestHandleGetTransaction(t *testing.T) {
 		Transactions: &MockTransactionStore{},
 	}
 
-	handler := handleGetTransaction(svc)
+	s := &Server{
+		logger: logger.Init(false),
+		svc: svc,
+	}
+
+	handler := s.handleGetTransaction()
 	handler(w, req)
 
 	resp := w.Result()
@@ -110,7 +121,12 @@ func TestHandleTransactions(t *testing.T) {
 				Transactions: &MockTransactionStore{},
 			}
 
-			handler := handleTransactions(svc)
+			s := &Server{
+				logger: logger.Init(false),
+				svc: svc,
+			}
+
+			handler := s.handleTransactions()
 			handler(w, req)
 
 			resp := w.Result()

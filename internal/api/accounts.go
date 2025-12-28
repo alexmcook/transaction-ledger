@@ -7,7 +7,6 @@ import (
 	"strings"
 	"net/http"
 	"github.com/google/uuid"
-	"github.com/alexmcook/transaction-ledger/internal/service"
 )
 
 // @Summary Create a new account
@@ -16,7 +15,7 @@ import (
 // @Success 201 {string} string "Account created with ID"
 // @Failure 500 {string} string "Failed to create account"
 // @Router /accounts [post]
-func handleAccounts(svc *service.Service) http.HandlerFunc {
+func (s *Server) handleAccounts() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		p := strings.Trim(r.URL.Path, "/")
 		parts := strings.Split(p, "/")
@@ -28,10 +27,10 @@ func handleAccounts(svc *service.Service) http.HandlerFunc {
 			}
 			// Extract account ID from URL
 			r.SetPathValue("accountId", parts[1])
-		  handleGetAccount(svc)(w,r)
+		  s.handleGetAccount()(w,r)
 			return
 		case http.MethodPost:
-			handleCreateAccount(svc)(w, r)
+			s.handleCreateAccount()(w, r)
 			return
 		default:
 			http.Error(w, "Not Found", http.StatusNotFound)
@@ -40,7 +39,7 @@ func handleAccounts(svc *service.Service) http.HandlerFunc {
 	}
 }
 
-func handleGetAccount(svc *service.Service) http.HandlerFunc {
+func (s *Server) handleGetAccount() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		accountId, err := uuid.Parse(r.PathValue("accountId"))
 		if err != nil {
@@ -48,7 +47,7 @@ func handleGetAccount(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		account, err := svc.Accounts.GetAccount(r.Context(), accountId)
+		account, err := s.svc.Accounts.GetAccount(r.Context(), accountId)
 		if err != nil {
 			http.Error(w, "Account not found", http.StatusNotFound)
 			return
@@ -60,7 +59,7 @@ func handleGetAccount(svc *service.Service) http.HandlerFunc {
 	}
 }
 
-func handleCreateAccount(svc *service.Service) http.HandlerFunc {
+func (s *Server) handleCreateAccount() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		type Payload struct {
 			UserId  uuid.UUID `json:"userId"`
@@ -81,7 +80,7 @@ func handleCreateAccount(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		account, err := svc.Accounts.CreateAccount(r.Context(), p.UserId, p.Balance)
+		account, err := s.svc.Accounts.CreateAccount(r.Context(), p.UserId, p.Balance)
 		if err != nil {
 			http.Error(w, "Failed to create account", http.StatusInternalServerError)
 			return

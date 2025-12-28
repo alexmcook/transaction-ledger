@@ -9,7 +9,10 @@ import (
 func TestHandleHealth(t *testing.T) {
 	req := httptest.NewRequest("GET", "/health", nil)
 	w := httptest.NewRecorder()
-	handleHealth(w, req)
+
+	s := &Server{}
+
+	s.handleHealth(w, req)
 
 	resp := w.Result()
 	if resp.StatusCode != http.StatusOK {

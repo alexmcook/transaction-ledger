@@ -2,10 +2,12 @@ package db
 
 import (
 	"context"
+	"log/slog"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Store struct {
+	logger  *slog.Logger
 	Users    *UsersRepo
 	Accounts *AccountsRepo
 	Transactions *TransactionsRepo
@@ -20,8 +22,9 @@ func Connect(ctx context.Context, dbUrl string) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
-func NewStore(pool *pgxpool.Pool) *Store {
+func NewStore(pool *pgxpool.Pool, logger *slog.Logger) *Store {
 	return &Store{
+		logger:	 logger,
 		Users:    NewUsersRepo(pool),
 		Accounts: NewAccountsRepo(pool),
 		Transactions: NewTransactionsRepo(pool),

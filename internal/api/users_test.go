@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/alexmcook/transaction-ledger/internal/model"
 	"github.com/alexmcook/transaction-ledger/internal/service"
+	"github.com/alexmcook/transaction-ledger/internal/logger"
 )
 
 type MockUserStore struct{}
@@ -35,7 +36,12 @@ func TestHandleCreateUser(t *testing.T) {
 		Users: &MockUserStore{},
 	}
 
-	handler := handleCreateUser(svc)
+	s := &Server{
+		logger: logger.Init(false),
+		svc: svc,
+	}
+
+	handler := s.handleCreateUser()
 	handler(w, req)
 
 	resp := w.Result()
@@ -59,7 +65,12 @@ func TestHandleGetUser(t *testing.T) {
 		Users: &MockUserStore{},
 	}
 
-	handler := handleGetUser(svc)
+	s := &Server{
+		logger: logger.Init(false),
+		svc: svc,
+	}
+
+	handler := s.handleGetUser()
 	handler(w, req)
 
 	resp := w.Result()
@@ -95,7 +106,12 @@ func TestHandleUsers(t *testing.T) {
 				Users: &MockUserStore{},
 			}
 
-			handler := handleUsers(svc)
+			s := &Server{
+				logger: logger.Init(false),
+				svc: svc,
+			}
+
+			handler := s.handleUsers()
 			handler(w, req)
 
 			resp := w.Result()
