@@ -2,6 +2,8 @@ package api
 
 import (
 	"fmt"
+	"io"
+	"encoding/json"
 	"strings"
 	"net/http"
 	"strconv"
@@ -61,7 +63,26 @@ func handleGetAccount(svc *service.Service) http.HandlerFunc {
 
 func handleCreateAccount(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		account, err := svc.Accounts.CreateAccount(r.Context(), 1, 0)
+		type Payload struct {
+			UserId int64 `json:"userId"`
+			Balance int64 `json:"balance"`
+		}
+		var p Payload
+
+		r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // limit 1MB
+		b, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Failed to read request body", http.StatusBadRequest)
+			return
+		}
+
+		err = json.Unmarshal(b, &p)
+		if err != nil {
+			http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+			return
+		}
+
+		account, err := svc.Accounts.CreateAccount(r.Context(), p.UserId, p.Balance)
 		if err != nil {
 			http.Error(w, "Failed to create account", http.StatusInternalServerError)
 			return

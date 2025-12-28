@@ -2,6 +2,8 @@ package api
 
 import (
 	"fmt"
+	"io"
+	"encoding/json"
 	"strings"
 	"net/http"
 	"strconv"
@@ -55,7 +57,26 @@ func handleGetTransaction(svc *service.Service) http.HandlerFunc {
 
 func handleCreateTransaction(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		transaction, err := svc.Transactions.CreateTransaction(r.Context(), 1, 0)
+		type Payload struct {
+			AccountId int64 `json:"accountId"`
+			Amount    int64 `json:"amount"`
+		}
+		var p Payload
+
+		r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // limit 1MB
+		b, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Failed to read request body", http.StatusBadRequest)
+			return
+		}
+
+		err = json.Unmarshal(b, &p)
+		if err != nil {
+			http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+			return
+		}
+
+		transaction, err := svc.Transactions.CreateTransaction(r.Context(), p.AccountId, p.Amount)
 		if err != nil {
 			http.Error(w, "Failed to create transaction", http.StatusInternalServerError)
 			return

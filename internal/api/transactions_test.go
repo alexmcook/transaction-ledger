@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -20,7 +21,8 @@ func (m *MockTransactionStore) CreateTransaction(ctx context.Context, accountId 
 }
 
 func TestHandleCreateTransaction(t *testing.T) {
-	req := httptest.NewRequest(http.MethodPost, "/transactions", nil)
+	payload := []byte(`{"accountId": 5, "amount": 50}`)
+	req := httptest.NewRequest(http.MethodPost, "/transactions", bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
 
 	w := httptest.NewRecorder()
@@ -64,16 +66,23 @@ func TestHandleTransactions(t *testing.T) {
 		name				 string
 		method       string
 		url          string
+		body				 []byte
 		expectedCode int
 	}{
-		{"GET", http.MethodGet, "/transactions", http.StatusNoContent},
-		{"GET", http.MethodGet, "/transactions/1", http.StatusOK},
-		{"POST", http.MethodPost, "/transactions", http.StatusCreated},
+		{"GET", http.MethodGet, "/transactions", nil, http.StatusNoContent},
+		{"GET", http.MethodGet, "/transactions/1", nil, http.StatusOK},
+		{"POST", http.MethodPost, "/transactions", []byte(`{"accountId": 5, "amount": 50}`), http.StatusCreated},
 	}
 
 	for _, tt := range tests {
 		t. Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(tt.method, tt.url, nil)
+			var req *http.Request
+			if tt.body == nil {
+				req = httptest.NewRequest(tt.method, tt.url, nil)
+			} else {
+				req = httptest.NewRequest(tt.method, tt.url, bytes.NewReader(tt.body))
+				req.Header.Set("Content-Type", "application/json")
+			}
 			w := httptest.NewRecorder()
 
 			// Mock service

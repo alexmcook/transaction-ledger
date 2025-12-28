@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -20,7 +21,8 @@ func (m *MockAccountStore) CreateAccount(ctx context.Context, userId int64, bala
 }
 
 func TestHandleCreateAccount(t *testing.T) {
-	req := httptest.NewRequest(http.MethodPost, "/accounts", nil)
+	payload := []byte(`{"userId": 5, "balance": 100}`)
+	req := httptest.NewRequest(http.MethodPost, "/accounts", bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
 
 	w := httptest.NewRecorder()
@@ -64,16 +66,23 @@ func TestHandleAccounts(t *testing.T) {
 		name				 string
 		method       string
 		url          string
+		body				 []byte
 		expectedCode int
 	}{
-		{"GET", http.MethodGet, "/accounts", http.StatusNoContent},
-		{"GET", http.MethodGet, "/accounts/1", http.StatusOK},
-		{"POST", http.MethodPost, "/accounts", http.StatusCreated},
+		{"GET", http.MethodGet, "/accounts", nil, http.StatusNoContent},
+		{"GET", http.MethodGet, "/accounts/1", nil, http.StatusOK},
+		{"POST", http.MethodPost, "/accounts", []byte(`{"userId": 5, "balance": 100}`), http.StatusCreated},
 	}
 
 	for _, tt := range tests {
 		t. Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(tt.method, tt.url, nil)
+			var req *http.Request
+			if tt.body == nil {
+				req = httptest.NewRequest(tt.method, tt.url, nil)
+			} else {
+				req = httptest.NewRequest(tt.method, tt.url, bytes.NewReader(tt.body))
+				req.Header.Set("Content-Type", "application/json")
+			}
 			w := httptest.NewRecorder()
 
 			// Mock service
