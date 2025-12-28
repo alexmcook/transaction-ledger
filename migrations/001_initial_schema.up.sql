@@ -1,25 +1,25 @@
 CREATE TABLE IF NOT EXISTS users (
-  id BIGSERIAL PRIMARY KEY,
-  created_at BIGINT DEFAULT (floor(extract(epoch FROM now() AT TIME ZONE 'UTC') * 1000)::BIGINT)
+  id UUID PRIMARY KEY,
+  created_at BIGINT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS accounts (
-  id BIGSERIAL PRIMARY KEY,
-  user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
-  balance BIGINT DEFAULT 0,
-  created_at BIGINT DEFAULT (floor(extract(epoch FROM now() AT TIME ZONE 'UTC') * 1000)::BIGINT)
+  id UUID PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  balance BIGINT NOT NULL,
+  created_at BIGINT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS transaction_types (
   id SMALLSERIAL PRIMARY KEY,
-  type VARCHAR(12) UNIQUE NOT NULL
+  type VARCHAR(12) NOT NULL UNIQUE
 );
 INSERT INTO transaction_types (type) VALUES ('deposit'), ('withdrawal');
 
 CREATE TABLE IF NOT EXISTS transactions (
-  id BIGSERIAL PRIMARY KEY,
-  account_id BIGINT REFERENCES accounts(id) ON DELETE CASCADE,
+  id UUID PRIMARY KEY,
+  account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
   amount BIGINT NOT NULL,
   transaction_type SMALLINT NOT NULL REFERENCES transaction_types(id),
-  created_at BIGINT DEFAULT (floor(extract(epoch FROM now() AT TIME ZONE 'UTC') * 1000)::BIGINT)
+  created_at BIGINT NOT NULL
 );

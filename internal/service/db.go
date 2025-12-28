@@ -2,22 +2,23 @@ package service
 
 import (
 	"context"
+	"github.com/google/uuid"
 	"github.com/alexmcook/transaction-ledger/internal/model"
 )
 
 type UserStore interface {
-	GetUser(ctx context.Context, id int64) (*model.User, error)
+	GetUser(ctx context.Context, id uuid.UUID) (*model.User, error)
 	CreateUser(ctx context.Context) (*model.User, error)
 }
 
 type AccountStore interface {
-	GetAccount(ctx context.Context, id int64) (*model.Account, error)
-	CreateAccount(ctx context.Context, userId int64, initialBalance int64) (*model.Account, error)
+	GetAccount(ctx context.Context, id uuid.UUID) (*model.Account, error)
+	CreateAccount(ctx context.Context, userId uuid.UUID, initialBalance int64) (*model.Account, error)
 }
 
 type TransactionStore interface {
-	GetTransaction(ctx context.Context, id int64) (*model.Transaction, error)
-	CreateTransaction(ctx context.Context, accountId int64, amount int64) (*model.Transaction, error)
+	GetTransaction(ctx context.Context, id uuid.UUID) (*model.Transaction, error)
+	CreateTransaction(ctx context.Context, accountId uuid.UUID, amount int64) (*model.Transaction, error)
 }
 
 type Service struct {

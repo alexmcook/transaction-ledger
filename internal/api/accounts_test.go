@@ -1,27 +1,38 @@
 package api
 
 import (
+	"fmt"
 	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"context"
+	"github.com/google/uuid"
 	"github.com/alexmcook/transaction-ledger/internal/service"
 	"github.com/alexmcook/transaction-ledger/internal/model"
 )
 
 type MockAccountStore struct{}
 
-func (m *MockAccountStore) GetAccount(ctx context.Context, id int64) (*model.Account, error) {
+func (m *MockAccountStore) GetAccount(ctx context.Context, id uuid.UUID) (*model.Account, error) {
 	return &model.Account{Id: id}, nil
 }
 
-func (m *MockAccountStore) CreateAccount(ctx context.Context, userId int64, balance int64) (*model.Account, error) {
-	return &model.Account{Id: 1}, nil
+func (m *MockAccountStore) CreateAccount(ctx context.Context, userId uuid.UUID, balance int64) (*model.Account, error) {
+	uuid, err := uuid.NewV7()
+	if err != nil {
+		return nil, err
+	}
+	return &model.Account{Id: uuid}, nil
 }
 
 func TestHandleCreateAccount(t *testing.T) {
-	payload := []byte(`{"userId": 5, "balance": 100}`)
+	uuid, err := uuid.NewV7()
+	if err != nil {
+		t.Fatalf("failed to generate UUID: %v", err)
+	}
+
+	payload := fmt.Appendf(nil, `{"userId": "%s", "balance": 100}`, uuid)
 	req := httptest.NewRequest(http.MethodPost, "/accounts", bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
 
@@ -42,9 +53,13 @@ func TestHandleCreateAccount(t *testing.T) {
 }
 
 func TestHandleGetAccount(t *testing.T) {
-	// GET request for account with ID 1
-	req := httptest.NewRequest(http.MethodGet, "/accounts/1", nil)
-	req.SetPathValue("accountId", "1") 
+	uuid, err := uuid.NewV7()
+	if err != nil {
+		t.Fatalf("failed to generate UUID: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/accounts/" + uuid.String(), nil)
+	req.SetPathValue("accountId", uuid.String()) 
 	w := httptest.NewRecorder()
 
 	// Mock service
@@ -62,6 +77,11 @@ func TestHandleGetAccount(t *testing.T) {
 }
 
 func TestHandleAccounts(t *testing.T) {
+	uuid, err := uuid.NewV7()
+	if err != nil {
+		t.Fatalf("failed to generate UUID: %v", err)
+	}
+
 	var tests = []struct {
 		name				 string
 		method       string
@@ -70,8 +90,8 @@ func TestHandleAccounts(t *testing.T) {
 		expectedCode int
 	}{
 		{"GET", http.MethodGet, "/accounts", nil, http.StatusNoContent},
-		{"GET", http.MethodGet, "/accounts/1", nil, http.StatusOK},
-		{"POST", http.MethodPost, "/accounts", []byte(`{"userId": 5, "balance": 100}`), http.StatusCreated},
+		{"GET", http.MethodGet, "/accounts/" + uuid.String(), nil, http.StatusOK},
+		{"POST", http.MethodPost, "/accounts", fmt.Appendf(nil, `{"userId": "%s", "balance": 100}`, uuid), http.StatusCreated},
 	}
 
 	for _, tt := range tests {

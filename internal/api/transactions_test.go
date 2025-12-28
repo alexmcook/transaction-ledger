@@ -1,27 +1,38 @@
 package api
 
 import (
+	"fmt"
 	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"context"
+	"github.com/google/uuid"
 	"github.com/alexmcook/transaction-ledger/internal/service"
 	"github.com/alexmcook/transaction-ledger/internal/model"
 )
 
 type MockTransactionStore struct{}
 
-func (m *MockTransactionStore) GetTransaction(ctx context.Context, id int64) (*model.Transaction, error) {
+func (m *MockTransactionStore) GetTransaction(ctx context.Context, id uuid.UUID) (*model.Transaction, error) {
 	return &model.Transaction{Id: id}, nil
 }
 
-func (m *MockTransactionStore) CreateTransaction(ctx context.Context, accountId int64, amount int64) (*model.Transaction, error) {
-	return &model.Transaction{Id: 1}, nil
+func (m *MockTransactionStore) CreateTransaction(ctx context.Context, accountId uuid.UUID, amount int64) (*model.Transaction, error) {
+	uuid, err := uuid.NewV7()
+	if err != nil {
+		return nil, err
+	}
+	return &model.Transaction{Id: uuid}, nil
 }
 
 func TestHandleCreateTransaction(t *testing.T) {
-	payload := []byte(`{"accountId": 5, "amount": 50}`)
+	uuid, err := uuid.NewV7()
+	if err != nil {
+		t.Fatalf("failed to generate UUID: %v", err)
+	}
+
+	payload := fmt.Appendf(nil, `{"accountId": "%s", "amount": 50}`, uuid)
 	req := httptest.NewRequest(http.MethodPost, "/transactions", bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
 
@@ -42,9 +53,13 @@ func TestHandleCreateTransaction(t *testing.T) {
 }
 
 func TestHandleGetTransaction(t *testing.T) {
-	// GET request for transaction with ID 1
-	req := httptest.NewRequest(http.MethodGet, "/transactions/1", nil)
-	req.SetPathValue("transactionId", "1") 
+	uuid, err := uuid.NewV7()
+	if err != nil {
+		t.Fatalf("failed to generate uuid: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/transactions/" + uuid.String(), nil)
+	req.SetPathValue("transactionId", uuid.String()) 
 	w := httptest.NewRecorder()
 
 	// Mock service
@@ -62,6 +77,11 @@ func TestHandleGetTransaction(t *testing.T) {
 }
 
 func TestHandleTransactions(t *testing.T) {
+	uuid, err := uuid.NewV7()
+	if err != nil {
+		t.Fatalf("failed to generate uuid: %v", err)
+	}
+
 	var tests = []struct {
 		name				 string
 		method       string
@@ -70,8 +90,8 @@ func TestHandleTransactions(t *testing.T) {
 		expectedCode int
 	}{
 		{"GET", http.MethodGet, "/transactions", nil, http.StatusNoContent},
-		{"GET", http.MethodGet, "/transactions/1", nil, http.StatusOK},
-		{"POST", http.MethodPost, "/transactions", []byte(`{"accountId": 5, "amount": 50}`), http.StatusCreated},
+		{"GET", http.MethodGet, "/transactions/" + uuid.String(), nil, http.StatusOK},
+		{"POST", http.MethodPost, "/transactions", fmt.Appendf(nil, `{"accountId": "%s", "amount": 50}`, uuid), http.StatusCreated},
 	}
 
 	for _, tt := range tests {

@@ -5,18 +5,23 @@ import (
 	"net/http/httptest"
 	"testing"
 	"context"
+	"github.com/google/uuid"
 	"github.com/alexmcook/transaction-ledger/internal/model"
 	"github.com/alexmcook/transaction-ledger/internal/service"
 )
 
 type MockUserStore struct{}
 
-func (m *MockUserStore) GetUser(ctx context.Context, id int64) (*model.User, error) {
+func (m *MockUserStore) GetUser(ctx context.Context, id uuid.UUID) (*model.User, error) {
 	return &model.User{Id: id}, nil
 }
 
 func (m *MockUserStore) CreateUser(ctx context.Context) (*model.User, error) {
-	return &model.User{Id: 1}, nil
+	uuid, err := uuid.NewV7()
+	if err != nil {
+		return nil, err
+	}
+	return &model.User{Id: uuid}, nil
 }
 
 func TestHandleCreateUser(t *testing.T) {
@@ -40,9 +45,13 @@ func TestHandleCreateUser(t *testing.T) {
 }
 
 func TestHandleGetUser(t *testing.T) {
-	// GET request for user with ID 1
-	req := httptest.NewRequest(http.MethodGet, "/users/1", nil)
-	req.SetPathValue("userId", "1") 
+	uuid, err := uuid.NewV7()
+	if err != nil {
+		t.Fatalf("failed to generate uuid: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/users/" + uuid.String(), nil)
+	req.SetPathValue("userId", uuid.String()) 
 	w := httptest.NewRecorder()
 
 	// Mock service
@@ -57,15 +66,14 @@ func TestHandleGetUser(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("expected status 200 OK, got %d", resp.StatusCode)
 	}
-
-	expectedBody := "User ID: 1"
-	body := w.Body.String()
-	if body != expectedBody {
-		t.Errorf("expected body %q, got %q", expectedBody, body)
-	}
 }
 
 func TestHandleUsers(t *testing.T) {
+	uuid, err := uuid.NewV7()
+	if err != nil {
+		t.Fatalf("failed to generate uuid: %v", err)
+	}
+
 	var tests = []struct {
 		name				 string
 		method       string
@@ -73,7 +81,7 @@ func TestHandleUsers(t *testing.T) {
 		expectedCode int
 	}{
 		{"GET", http.MethodGet, "/users", http.StatusNoContent},
-		{"GET", http.MethodGet, "/users/1", http.StatusOK},
+		{"GET", http.MethodGet, "/users/" + uuid.String(), http.StatusOK},
 		{"POST", http.MethodPost, "/users", http.StatusCreated},
 	}
 

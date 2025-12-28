@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"strings"
 	"net/http"
-	"strconv"
+	"github.com/google/uuid"
 	"github.com/alexmcook/transaction-ledger/internal/service"
 )
 
@@ -42,10 +42,8 @@ func handleAccounts(svc *service.Service) http.HandlerFunc {
 
 func handleGetAccount(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		accountIdStr := r.PathValue("accountId")
-		accountId, err := strconv.ParseInt(accountIdStr, 10, 64)
+		accountId, err := uuid.Parse(r.PathValue("accountId"))
 		if err != nil {
-			fmt.Fprintf(w, "Err: %s", accountIdStr)
 			http.Error(w, "Invalid account ID", http.StatusBadRequest)
 			return
 		}
@@ -55,6 +53,7 @@ func handleGetAccount(svc *service.Service) http.HandlerFunc {
 			http.Error(w, "Account not found", http.StatusNotFound)
 			return
 		}
+
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, "Account ID: %d\nUser ID: %d\nAccount balance: %d", account.Id, account.UserId, account.Balance)
@@ -64,8 +63,8 @@ func handleGetAccount(svc *service.Service) http.HandlerFunc {
 func handleCreateAccount(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		type Payload struct {
-			UserId int64 `json:"userId"`
-			Balance int64 `json:"balance"`
+			UserId  uuid.UUID `json:"userId"`
+			Balance int64     `json:"balance"`
 		}
 		var p Payload
 

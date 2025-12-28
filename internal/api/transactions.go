@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"io"
 	"encoding/json"
-	"strings"
 	"net/http"
-	"strconv"
+	"strings"
+	"github.com/google/uuid"
 	"github.com/alexmcook/transaction-ledger/internal/service"
 )
 
@@ -36,10 +36,8 @@ func handleTransactions(svc *service.Service) http.HandlerFunc {
 
 func handleGetTransaction(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		transactionIdStr := r.PathValue("transactionId")
-		transactionId, err := strconv.ParseInt(transactionIdStr, 10, 64)
+		transactionId, err := uuid.Parse(r.PathValue("transactionId"))
 		if err != nil {
-			fmt.Fprintf(w, "Err: %s", transactionIdStr)
 			http.Error(w, "Invalid transaction ID", http.StatusBadRequest)
 			return
 		}
@@ -58,8 +56,8 @@ func handleGetTransaction(svc *service.Service) http.HandlerFunc {
 func handleCreateTransaction(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		type Payload struct {
-			AccountId int64 `json:"accountId"`
-			Amount    int64 `json:"amount"`
+			AccountId uuid.UUID `json:"accountId"`
+			Amount    int64     `json:"amount"`
 		}
 		var p Payload
 

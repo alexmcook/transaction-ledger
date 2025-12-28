@@ -2,9 +2,9 @@ package api
 
 import (
 	"fmt"
-	"strconv"
 	"net/http"
 	"strings"
+	"github.com/google/uuid"
 	"github.com/alexmcook/transaction-ledger/internal/service"
 )
 
@@ -42,11 +42,9 @@ func handleUsers(svc *service.Service) http.HandlerFunc {
 // @Router /users/{id} [get]
 func handleGetUser(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Extract user ID from URL
-		userIdStr := r.PathValue("userId")
-		userId, err := strconv.ParseInt(userIdStr, 10, 64)
+		userId, err := uuid.Parse(r.PathValue("userId"))
+
 		if err != nil {
-			fmt.Fprintf(w, "Err: %s", userIdStr)
 			http.Error(w, "Invalid user ID", http.StatusBadRequest)
 			return
 		}
