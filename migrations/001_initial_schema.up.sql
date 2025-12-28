@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS transaction_types (
   id SMALLSERIAL PRIMARY KEY,
   type VARCHAR(12) NOT NULL UNIQUE
 );
-INSERT INTO transaction_types (type) VALUES ('deposit'), ('withdrawal');
+INSERT INTO transaction_types (type) VALUES ('credit'), ('debit');
 
 CREATE TABLE IF NOT EXISTS transactions (
   id UUID PRIMARY KEY,

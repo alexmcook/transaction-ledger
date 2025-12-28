@@ -21,8 +21,14 @@ type Transaction struct {
 	Id uuid.UUID
 	AccountId uuid.UUID
 	Amount int64
+	Type int // Credit or Debit
 	CreatedAt int64 // Milliseconds since epoch
 }
+
+const (
+	Credit = iota
+	Debit
+)
 
 func (u *User) GetDetails() string {
 	return fmt.Sprintf("User ID: %s\nCreated At: %d", u.Id, u.CreatedAt)
@@ -33,5 +39,12 @@ func (a *Account) GetDetails() string {
 }
 
 func (t *Transaction) GetDetails() string {
-	return fmt.Sprintf("Transaction ID: %s\nAccount ID: %s\nAmount: %d\nCreated At: %d", t.Id, t.AccountId, t.Amount, t.CreatedAt)
+	var typeStr string
+	switch t.Type {
+	case Credit:
+		typeStr = "Credit"
+	case Debit:
+		typeStr = "Debit"
+	}
+	return fmt.Sprintf("Transaction ID: %s\nAccount ID: %s\nAmount: %d\nType: %s\nCreated At: %d", t.Id, t.AccountId, t.Amount, typeStr, t.CreatedAt)
 }

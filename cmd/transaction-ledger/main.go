@@ -37,6 +37,7 @@ func main() {
 	svc := service.New(service.Deps{
 		Users:    store.Users,
 		Accounts: store.Accounts,
+		Transactions: store.Transactions,
 	})
 
 	httpHandler := api.NewRouter(svc)

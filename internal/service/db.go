@@ -18,7 +18,7 @@ type AccountStore interface {
 
 type TransactionStore interface {
 	GetTransaction(ctx context.Context, id uuid.UUID) (*model.Transaction, error)
-	CreateTransaction(ctx context.Context, accountId uuid.UUID, amount int64) (*model.Transaction, error)
+	CreateTransaction(ctx context.Context, accountId uuid.UUID, transactionType int, amount int64) (*model.Transaction, error)
 }
 
 type Service struct {
@@ -30,11 +30,13 @@ type Service struct {
 type Deps struct {
 	Users    UserStore
 	Accounts AccountStore
+	Transactions TransactionStore
 }
 
 func New(d Deps) *Service {
 	return &Service{
 		Users:    d.Users,
 		Accounts: d.Accounts,
+		Transactions: d.Transactions,
 	}
 }

@@ -8,6 +8,7 @@ import (
 type Store struct {
 	Users    *UsersRepo
 	Accounts *AccountsRepo
+	Transactions *TransactionsRepo
 }
 
 func Connect(ctx context.Context, dbUrl string) (*pgxpool.Pool, error) {
@@ -23,5 +24,6 @@ func NewStore(pool *pgxpool.Pool) *Store {
 	return &Store{
 		Users:    NewUsersRepo(pool),
 		Accounts: NewAccountsRepo(pool),
+		Transactions: NewTransactionsRepo(pool),
 	}
 }

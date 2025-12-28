@@ -57,6 +57,7 @@ func handleCreateTransaction(svc *service.Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		type Payload struct {
 			AccountId uuid.UUID `json:"accountId"`
+			Type      int       `json:"type"`
 			Amount    int64     `json:"amount"`
 		}
 		var p Payload
@@ -74,9 +75,9 @@ func handleCreateTransaction(svc *service.Service) http.HandlerFunc {
 			return
 		}
 
-		transaction, err := svc.Transactions.CreateTransaction(r.Context(), p.AccountId, p.Amount)
+		transaction, err := svc.Transactions.CreateTransaction(r.Context(), p.AccountId, p.Type, p.Amount)
 		if err != nil {
-			http.Error(w, "Failed to create transaction", http.StatusInternalServerError)
+			http.Error(w, "Failed to create transaction: " + err.Error(), http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
