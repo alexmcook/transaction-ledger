@@ -1,7 +1,6 @@
 package api
 
 import (
-	"fmt"
 	"github.com/alexmcook/transaction-ledger/internal/model"
 	"github.com/google/uuid"
 	"net/http"
@@ -62,35 +61,34 @@ func (s *Server) handleGetUser() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userId, err := uuid.Parse(r.PathValue("userId"))
 		if err != nil {
-			s.respondWithError(w, http.StatusBadRequest, "Invalid user ID format")
+			s.respondWithError(r.Context(), w, http.StatusBadRequest, "Invalid user ID format", err)
 			return
 		}
 
 		user, err := s.svc.Users.GetUser(r.Context(), userId)
 		if err != nil {
-			s.respondWithError(w, http.StatusNotFound, "User not found")
+			s.respondWithError(r.Context(), w, http.StatusNotFound, "User not found", err)
 			return
 		}
 
-		s.respondWithJSON(w, http.StatusOK, toUserResponse(user))
+		s.respondWithJSON(r.Context(), w, http.StatusOK, toUserResponse(user))
 	}
 }
 
-// @Summary Create a new user
-// @Description Creates a new user in the system
-// @Produce plain
-// @Success 201 {string} string "User created with ID"
-// @Failure 500 {string} string "Failed to create user"
-// @Router /users [post]
+// @Summary      Create a new user
+// @Description  Creates a new user in the system
+// @Produce      json
+// @Success      201 {object} UserResponse "User object"
+// @Failure      500 {object} ErrorResponse "Failed to create user"
+// @Router       /users [post]
 func (s *Server) handleCreateUser() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, err := s.svc.Users.CreateUser(r.Context())
 		if err != nil {
-			http.Error(w, "Failed to create user", http.StatusInternalServerError)
+			s.respondWithError(r.Context(), w, http.StatusInternalServerError, "Failed to create user", err)
 			return
 		}
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.WriteHeader(http.StatusCreated)
-		fmt.Fprintf(w, "User created with ID: %d", user.Id)
+
+		s.respondWithJSON(r.Context(), w, http.StatusCreated, toUserResponse(user))
 	}
 }

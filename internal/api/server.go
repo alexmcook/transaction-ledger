@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/alexmcook/transaction-ledger/internal/service"
 	"log/slog"
@@ -43,24 +44,30 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
-func (s *Server) respondWithError(w http.ResponseWriter, code int, message string) {
-	s.logger.Error("API error", slog.Int("code", code), slog.String("message", message))
+func (s *Server) respondWithError(ctx context.Context, w http.ResponseWriter, code int, message string, err error) {
+	if code >= 500 {
+		s.logger.ErrorContext(ctx, "Server error", slog.Int("code", code), slog.String("message", message), slog.String("error", err.Error()))
+	} else if code >= 400 {
+		s.logger.WarnContext(ctx, "Client error", slog.Int("code", code), slog.String("message", message), slog.String("error", err.Error()))
+	}
 	w.WriteHeader(code)
 	errResp := ErrorResponse{Error: message}
-	err := json.NewEncoder(w).Encode(errResp)
+	err = json.NewEncoder(w).Encode(errResp)
 	if err != nil {
-		s.logger.Error("Failed to encode error response", slog.String("error", err.Error()))
+		s.logger.ErrorContext(ctx, "Failed to encode error response", slog.String("error", err.Error()))
 	}
 }
 
-func (s *Server) respondWithJSON(w http.ResponseWriter, status int, payload any) {
-	w.WriteHeader(status)
+func (s *Server) respondWithJSON(ctx context.Context, w http.ResponseWriter, code int, payload any) {
+	w.WriteHeader(code)
 	if payload == nil {
+		s.logger.DebugContext(ctx, "Response", slog.Int("code", code))
 		return
 	}
+	s.logger.DebugContext(ctx, "Response", slog.Int("code", code), slog.Any("payload", payload))
 	err := json.NewEncoder(w).Encode(payload)
 	if err != nil {
-		s.logger.Error("Failed to encode JSON response", slog.String("error", err.Error()))
+		s.logger.ErrorContext(ctx, "Failed to encode JSON response", slog.String("error", err.Error()))
 	}
 }
 
