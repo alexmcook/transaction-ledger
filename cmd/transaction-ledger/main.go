@@ -8,12 +8,12 @@ package main
 
 import (
 	"context"
-	"os"
-	"github.com/joho/godotenv"
-	"github.com/alexmcook/transaction-ledger/internal/db"
 	"github.com/alexmcook/transaction-ledger/internal/api"
-	"github.com/alexmcook/transaction-ledger/internal/service"
+	"github.com/alexmcook/transaction-ledger/internal/db"
 	"github.com/alexmcook/transaction-ledger/internal/logger"
+	"github.com/alexmcook/transaction-ledger/internal/service"
+	"github.com/joho/godotenv"
+	"os"
 )
 
 func main() {
@@ -38,9 +38,9 @@ func main() {
 
 	store := db.NewStore(pool, logger)
 	svc := service.New(service.Deps{
-		Logger:  			logger,
-		Users:    		store.Users,
-		Accounts: 		store.Accounts,
+		Logger:       logger,
+		Users:        store.Users,
+		Accounts:     store.Accounts,
 		Transactions: store.Transactions,
 	})
 

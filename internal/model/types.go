@@ -6,22 +6,22 @@ import (
 )
 
 type User struct {
-	Id uuid.UUID
+	Id        uuid.UUID
 	CreatedAt int64 // Milliseconds since epoch
 }
 
 type Account struct {
-	Id uuid.UUID
-	UserId uuid.UUID
-	Balance int64
+	Id        uuid.UUID
+	UserId    uuid.UUID
+	Balance   int64
 	CreatedAt int64 // Milliseconds since epoch
 }
 
 type Transaction struct {
-	Id uuid.UUID
+	Id        uuid.UUID
 	AccountId uuid.UUID
-	Amount int64
-	Type int // Credit or Debit
+	Amount    int64
+	Type      int   // Credit or Debit
 	CreatedAt int64 // Milliseconds since epoch
 }
 

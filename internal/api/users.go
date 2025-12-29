@@ -2,9 +2,11 @@ package api
 
 import (
 	"fmt"
+	"github.com/alexmcook/transaction-ledger/internal/model"
+	"github.com/google/uuid"
 	"net/http"
 	"strings"
-	"github.com/google/uuid"
+	"time"
 )
 
 func (s *Server) handleUsers() http.HandlerFunc {
@@ -19,7 +21,7 @@ func (s *Server) handleUsers() http.HandlerFunc {
 			}
 			// Extract user ID from URL
 			r.SetPathValue("userId", parts[1])
-		  s.handleGetUser()(w,r)
+			s.handleGetUser()(w, r)
 			return
 		case http.MethodPost:
 			s.handleCreateUser()(w, r)
@@ -31,30 +33,46 @@ func (s *Server) handleUsers() http.HandlerFunc {
 	}
 }
 
-// @Summary Get user by ID
-// @Description Retrieves a user by their ID
-// @Produce plain
-// @Param id path int true "User ID"
-// @Success 200 {string} string "User ID"
-// @Failure 400 {string} string "Invalid user ID"
-// @Failure 404 {string} string "User not found"
-// @Router /users/{id} [get]
+// UserResponse represents the user data returned in API responses
+type UserResponse struct {
+	// Id is the unique identifier of the user
+	// @example 550e8400-e29b-41d4-a716-446655440000
+	Id uuid.UUID `json:"id"`
+	// CreatedAt is the timestamp when the user was created
+	// @example 2025-12-25T11:11:00Z
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+func toUserResponse(u *model.User) *UserResponse {
+	return &UserResponse{
+		Id:        u.Id,
+		CreatedAt: time.UnixMilli(u.CreatedAt),
+	}
+}
+
+// @Summary      Get user by ID
+// @Description  Retrieves a user by their ID
+// @Produce      plain
+// @Param        id path int true "User ID"
+// @Success      200 {object} UserResponse "User object"
+// @Failure      400 {object} ErrorResponse "Invalid user ID"
+// @Failure      404 {object} ErrorResponse "User not found"
+// @Router       /users/{id} [get]
 func (s *Server) handleGetUser() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userId, err := uuid.Parse(r.PathValue("userId"))
-
 		if err != nil {
-			http.Error(w, "Invalid user ID", http.StatusBadRequest)
+			s.respondWithError(w, http.StatusBadRequest, "Invalid user ID format")
 			return
 		}
 
 		user, err := s.svc.Users.GetUser(r.Context(), userId)
 		if err != nil {
-			http.Error(w, "User not found", http.StatusNotFound)
+			s.respondWithError(w, http.StatusNotFound, "User not found")
 			return
 		}
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		fmt.Fprintf(w, "User ID: %d", user.Id)
+
+		s.respondWithJSON(w, http.StatusOK, toUserResponse(user))
 	}
 }
 

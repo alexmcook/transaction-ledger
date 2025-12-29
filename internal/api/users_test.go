@@ -1,14 +1,14 @@
 package api
 
 import (
+	"context"
+	"github.com/alexmcook/transaction-ledger/internal/logger"
+	"github.com/alexmcook/transaction-ledger/internal/model"
+	"github.com/alexmcook/transaction-ledger/internal/service"
+	"github.com/google/uuid"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"context"
-	"github.com/google/uuid"
-	"github.com/alexmcook/transaction-ledger/internal/model"
-	"github.com/alexmcook/transaction-ledger/internal/service"
-	"github.com/alexmcook/transaction-ledger/internal/logger"
 )
 
 type MockUserStore struct{}
@@ -38,7 +38,7 @@ func TestHandleCreateUser(t *testing.T) {
 
 	s := &Server{
 		logger: logger.Init(false),
-		svc: svc,
+		svc:    svc,
 	}
 
 	handler := s.handleCreateUser()
@@ -56,8 +56,8 @@ func TestHandleGetUser(t *testing.T) {
 		t.Fatalf("failed to generate uuid: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/users/" + uuid.String(), nil)
-	req.SetPathValue("userId", uuid.String()) 
+	req := httptest.NewRequest(http.MethodGet, "/users/"+uuid.String(), nil)
+	req.SetPathValue("userId", uuid.String())
 	w := httptest.NewRecorder()
 
 	// Mock service
@@ -67,7 +67,7 @@ func TestHandleGetUser(t *testing.T) {
 
 	s := &Server{
 		logger: logger.Init(false),
-		svc: svc,
+		svc:    svc,
 	}
 
 	handler := s.handleGetUser()
@@ -86,7 +86,7 @@ func TestHandleUsers(t *testing.T) {
 	}
 
 	var tests = []struct {
-		name				 string
+		name         string
 		method       string
 		url          string
 		expectedCode int
@@ -108,7 +108,7 @@ func TestHandleUsers(t *testing.T) {
 
 			s := &Server{
 				logger: logger.Init(false),
-				svc: svc,
+				svc:    svc,
 			}
 
 			handler := s.handleUsers()

@@ -1,12 +1,12 @@
 package api
 
 import (
-	"fmt"
-	"io"
 	"encoding/json"
-	"strings"
-	"net/http"
+	"fmt"
 	"github.com/google/uuid"
+	"io"
+	"net/http"
+	"strings"
 )
 
 // @Summary Create a new account
@@ -27,7 +27,7 @@ func (s *Server) handleAccounts() http.HandlerFunc {
 			}
 			// Extract account ID from URL
 			r.SetPathValue("accountId", parts[1])
-		  s.handleGetAccount()(w,r)
+			s.handleGetAccount()(w, r)
 			return
 		case http.MethodPost:
 			s.handleCreateAccount()(w, r)

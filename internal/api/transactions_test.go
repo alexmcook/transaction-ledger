@@ -1,16 +1,16 @@
 package api
 
 import (
-	"fmt"
 	"bytes"
+	"context"
+	"fmt"
+	"github.com/alexmcook/transaction-ledger/internal/logger"
+	"github.com/alexmcook/transaction-ledger/internal/model"
+	"github.com/alexmcook/transaction-ledger/internal/service"
+	"github.com/google/uuid"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"context"
-	"github.com/google/uuid"
-	"github.com/alexmcook/transaction-ledger/internal/service"
-	"github.com/alexmcook/transaction-ledger/internal/model"
-	"github.com/alexmcook/transaction-ledger/internal/logger"
 )
 
 type MockTransactionStore struct{}
@@ -46,7 +46,7 @@ func TestHandleCreateTransaction(t *testing.T) {
 
 	s := &Server{
 		logger: logger.Init(false),
-		svc: svc,
+		svc:    svc,
 	}
 
 	handler := s.handleCreateTransaction()
@@ -64,8 +64,8 @@ func TestHandleGetTransaction(t *testing.T) {
 		t.Fatalf("failed to generate uuid: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/transactions/" + uuid.String(), nil)
-	req.SetPathValue("transactionId", uuid.String()) 
+	req := httptest.NewRequest(http.MethodGet, "/transactions/"+uuid.String(), nil)
+	req.SetPathValue("transactionId", uuid.String())
 	w := httptest.NewRecorder()
 
 	// Mock service
@@ -75,7 +75,7 @@ func TestHandleGetTransaction(t *testing.T) {
 
 	s := &Server{
 		logger: logger.Init(false),
-		svc: svc,
+		svc:    svc,
 	}
 
 	handler := s.handleGetTransaction()
@@ -94,10 +94,10 @@ func TestHandleTransactions(t *testing.T) {
 	}
 
 	var tests = []struct {
-		name				 string
+		name         string
 		method       string
 		url          string
-		body				 []byte
+		body         []byte
 		expectedCode int
 	}{
 		{"GET", http.MethodGet, "/transactions", nil, http.StatusNoContent},
@@ -106,7 +106,7 @@ func TestHandleTransactions(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t. Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			var req *http.Request
 			if tt.body == nil {
 				req = httptest.NewRequest(tt.method, tt.url, nil)
@@ -123,7 +123,7 @@ func TestHandleTransactions(t *testing.T) {
 
 			s := &Server{
 				logger: logger.Init(false),
-				svc: svc,
+				svc:    svc,
 			}
 
 			handler := s.handleTransactions()

@@ -2,10 +2,10 @@ package db
 
 import (
 	"context"
-	"time"
+	"github.com/alexmcook/transaction-ledger/internal/model"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/alexmcook/transaction-ledger/internal/model"
+	"time"
 )
 
 type UsersRepo struct {
@@ -48,4 +48,3 @@ func (r *UsersRepo) CreateUser(ctx context.Context) (*model.User, error) {
 
 	return &user, nil
 }
-

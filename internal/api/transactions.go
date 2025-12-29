@@ -1,12 +1,12 @@
 package api
 
 import (
-	"fmt"
-	"io"
 	"encoding/json"
+	"fmt"
+	"github.com/google/uuid"
+	"io"
 	"net/http"
 	"strings"
-	"github.com/google/uuid"
 )
 
 func (s *Server) handleTransactions() http.HandlerFunc {
@@ -76,7 +76,7 @@ func (s *Server) handleCreateTransaction() http.HandlerFunc {
 
 		transaction, err := s.svc.Transactions.CreateTransaction(r.Context(), p.AccountId, p.Type, p.Amount)
 		if err != nil {
-			http.Error(w, "Failed to create transaction: " + err.Error(), http.StatusInternalServerError)
+			http.Error(w, "Failed to create transaction: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")

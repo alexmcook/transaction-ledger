@@ -1,16 +1,16 @@
 package api
 
 import (
-	"log/slog"
-	"net/http"
 	"encoding/json"
 	"github.com/alexmcook/transaction-ledger/internal/service"
+	"log/slog"
+	"net/http"
 )
 
 type Server struct {
-	router 	*http.ServeMux
-	logger 	*slog.Logger
-	svc 		*service.Service
+	router *http.ServeMux
+	logger *slog.Logger
+	svc    *service.Service
 }
 
 func NewServer(svc *service.Service, logger *slog.Logger) *Server {
@@ -39,9 +39,18 @@ func (s *Server) json(next http.Handler) http.Handler {
 	})
 }
 
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
 func (s *Server) respondWithError(w http.ResponseWriter, code int, message string) {
-	w.WriteHeader(code)
 	s.logger.Error("API error", slog.Int("code", code), slog.String("message", message))
+	w.WriteHeader(code)
+	errResp := ErrorResponse{Error: message}
+	err := json.NewEncoder(w).Encode(errResp)
+	if err != nil {
+		s.logger.Error("Failed to encode error response", slog.String("error", err.Error()))
+	}
 }
 
 func (s *Server) respondWithJSON(w http.ResponseWriter, status int, payload any) {
