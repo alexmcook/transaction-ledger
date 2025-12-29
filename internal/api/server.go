@@ -1,7 +1,6 @@
 package api
 
 import (
-	"fmt"
 	"log/slog"
 	"net/http"
 	"encoding/json"
@@ -20,7 +19,7 @@ func NewServer(svc *service.Service, logger *slog.Logger) *Server {
 		svc:    svc,
 	}
 	s.router = http.NewServeMux()
-	s.registerRoutes(s.router, svc)
+	s.registerRoutes(s.router)
 	return s
 }
 
@@ -42,22 +41,22 @@ func (s *Server) json(next http.Handler) http.Handler {
 
 func (s *Server) respondWithError(w http.ResponseWriter, code int, message string) {
 	w.WriteHeader(code)
-	fmt.Fprintf(w, `{"error": "%s"}`, message)
+	s.logger.Error("API error", slog.Int("code", code), slog.String("message", message))
 }
 
 func (s *Server) respondWithJSON(w http.ResponseWriter, status int, payload any) {
 	w.WriteHeader(status)
-	if payload != nil {
-		err := json.NewEncoder(w).Encode(payload)
-		if err != nil {
-			fmt.Printf("Failed to encode JSON response: %v\n", err)
-		}
+	if payload == nil {
+		return
 	}
-
+	err := json.NewEncoder(w).Encode(payload)
+	if err != nil {
+		s.logger.Error("Failed to encode JSON response", slog.String("error", err.Error()))
+	}
 }
 
-func (s *Server) registerRoutes(mux *http.ServeMux, svc *service.Service) {
-	mux.Handle("/health", s.json(http.HandlerFunc(s.handleHealth)))
+func (s *Server) registerRoutes(mux *http.ServeMux) {
+	mux.Handle("/health", http.HandlerFunc(s.handleHealth))
 	mux.Handle("/users", s.json(s.handleUsers()))
 	mux.Handle("/users/", s.json(s.handleUsers()))
 	mux.Handle("/accounts", s.json(s.handleAccounts()))
@@ -73,5 +72,5 @@ func (s *Server) registerRoutes(mux *http.ServeMux, svc *service.Service) {
 // @Router /health [get]
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprint(w, "OK")
+	w.Write([]byte("OK"))
 }
