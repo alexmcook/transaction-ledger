@@ -8,7 +8,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"github.com/joho/godotenv"
 	"github.com/alexmcook/transaction-ledger/internal/db"
@@ -25,14 +24,14 @@ func main() {
 
 	err := godotenv.Load()
 	if err != nil {
-		fmt.Printf("Error loading .env file: %v\n", err)
+		logger.Error("Error loading .env file", "error", err)
 		return
 	}
 
 	dbUrl := os.Getenv("DATABASE_URL")
 	pool, err := db.Connect(ctx, dbUrl)
 	if err != nil {
-		fmt.Printf("Failed to connect to database: %v\n", err)
+		logger.Error("Failed to connect to database", "error", err)
 		return
 	}
 	defer pool.Close()
