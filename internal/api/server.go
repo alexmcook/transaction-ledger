@@ -72,5 +72,6 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 // @Router /health [get]
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Write([]byte("OK"))
 }
