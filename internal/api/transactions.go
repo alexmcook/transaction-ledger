@@ -9,22 +9,36 @@ import (
 	"time"
 )
 
+// TransactionResponse represents the transaction data returned in API responses
 type TransactionResponse struct {
 	// Id is the unique identifier of the transaction
-	// @example 770e8400-e29b-41d4-a716-446655440000
+	//	@example	770e8400-e29b-41d4-a716-446655440000
 	Id uuid.UUID `json:"id"`
 	// AccountId is the unique identifier of the account associated with the transaction
-	// @example 880e8400-e29b-41d4-a716-446655440000
+	//	@example	880e8400-e29b-41d4-a716-446655440000
 	AccountId uuid.UUID `json:"accountId"`
 	// Amount is the amount of the transaction
-	// @example 500
+	//	@example	500
 	Amount int64 `json:"amount"`
 	// Type is the type of the transaction (e.g., credit or debit)
-	// @example 0
+	//	@example	0
 	Type int `json:"type"`
 	// CreatedAt is the timestamp when the transaction was created
-	// @example 2025-12-25T11:11:00Z
+	//	@example	2025-12-25T11:11:00Z
 	CreatedAt time.Time `json:"createdAt"`
+}
+
+// Payload represents the transaction data received in API requests
+type Payload struct {
+	// AccountId is the unique identifier of the account associated with the transaction
+	//	@example	880e8400-e29b-41d4-a716-446655440000
+	AccountId uuid.UUID `json:"account_id"`
+	// Type is the type of the transaction (e.g., credit or debit) as an integer
+	//	@example	0
+	Type int `json:"type"`
+	// Amount is the amount of the transaction
+	//	@example	500
+	Amount int64 `json:"amount"`
 }
 
 func toTransactionResponse(t *model.Transaction) *TransactionResponse {
@@ -37,14 +51,14 @@ func toTransactionResponse(t *model.Transaction) *TransactionResponse {
 	}
 }
 
-// @Summary      Get transaction
-// @Description  Retrieves a transaction by its ID
-// @Produce      json
-// @Param        transactionId path string true "Transaction ID"
-// @Success      200 {object} model.Transaction "Transaction object"
-// @Failure      400 {object} ErrorResponse "Invalid transaction ID"
-// @Failure      404 {object} ErrorResponse "Transaction not found"
-// @Router       /transactions/{transactionId} [get]
+//	@Summary		Get transaction
+//	@Description	Retrieves a transaction by its ID
+//	@Produce		json
+//	@Param			transactionId	path		string				true	"Transaction ID"	format(uuid)
+//	@Success		200				{object}	model.Transaction	"Transaction object"
+//	@Failure		400				{object}	ErrorResponse		"Invalid transaction ID"
+//	@Failure		404				{object}	ErrorResponse		"Transaction not found"
+//	@Router			/transactions/{transactionId} [get]
 func (s *Server) handleGetTransaction() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		transactionId, err := uuid.Parse(r.PathValue("transactionId"))
@@ -63,21 +77,16 @@ func (s *Server) handleGetTransaction() http.HandlerFunc {
 	}
 }
 
-// @Summary      Create a new transaction
-// @Description  Creates a new transaction for an account
-// @Produce      json
-// @Param        transaction body TransactionResponse true "Transaction payload"
-// @Success      201 {object} model.Transaction "Transaction object"
-// @Failure      400 {object} ErrorResponse "Invalid request payload"
-// @Failure      500 {object} ErrorResponse "Failed to create transaction"
-// @Router       /transactions [post]
+//	@Summary		Create a new transaction
+//	@Description	Creates a new transaction for an account
+//	@Produce		json
+//	@Param			transaction	body		Payload				true	"Transaction payload"
+//	@Success		201			{object}	model.Transaction	"Transaction object"
+//	@Failure		400			{object}	ErrorResponse		"Invalid request payload"
+//	@Failure		500			{object}	ErrorResponse		"Failed to create transaction"
+//	@Router			/transactions [post]
 func (s *Server) handleCreateTransaction() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		type Payload struct {
-			AccountId uuid.UUID `json:"accountId"`
-			Type      int       `json:"type"`
-			Amount    int64     `json:"amount"`
-		}
 		var p Payload
 
 		r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // limit 1MB

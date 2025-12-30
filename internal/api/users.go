@@ -10,10 +10,10 @@ import (
 // UserResponse represents the user data returned in API responses
 type UserResponse struct {
 	// Id is the unique identifier of the user
-	// @example 550e8400-e29b-41d4-a716-446655440000
+	//	@example	550e8400-e29b-41d4-a716-446655440000
 	Id uuid.UUID `json:"id"`
 	// CreatedAt is the timestamp when the user was created
-	// @example 2025-12-25T11:11:00Z
+	//	@example	2025-12-25T11:11:00Z
 	CreatedAt time.Time `json:"createdAt"`
 }
 
@@ -24,14 +24,14 @@ func toUserResponse(u *model.User) *UserResponse {
 	}
 }
 
-// @Summary      Get user by ID
-// @Description  Retrieves a user by their ID
-// @Produce      plain
-// @Param        id path int true "User ID"
-// @Success      200 {object} UserResponse "User object"
-// @Failure      400 {object} ErrorResponse "Invalid user ID"
-// @Failure      404 {object} ErrorResponse "User not found"
-// @Router       /users/{id} [get]
+//	@Summary		Get user by ID
+//	@Description	Retrieves a user by their ID
+//	@Produce		plain
+//	@Param			id	path		string			true	"User ID"	format(uuid)
+//	@Success		200	{object}	UserResponse	"User object"
+//	@Failure		400	{object}	ErrorResponse	"Invalid user ID"
+//	@Failure		404	{object}	ErrorResponse	"User not found"
+//	@Router			/users/{id} [get]
 func (s *Server) handleGetUser() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userId, err := uuid.Parse(r.PathValue("userId"))
@@ -50,12 +50,12 @@ func (s *Server) handleGetUser() http.HandlerFunc {
 	}
 }
 
-// @Summary      Create a new user
-// @Description  Creates a new user in the system
-// @Produce      json
-// @Success      201 {object} UserResponse "User object"
-// @Failure      500 {object} ErrorResponse "Failed to create user"
-// @Router       /users [post]
+//	@Summary		Create a new user
+//	@Description	Creates a new user in the system
+//	@Produce		json
+//	@Success		201	{object}	UserResponse	"User object"
+//	@Failure		500	{object}	ErrorResponse	"Failed to create user"
+//	@Router			/users [post]
 func (s *Server) handleCreateUser() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, err := s.svc.Users.CreateUser(r.Context())

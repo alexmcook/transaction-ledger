@@ -1,4 +1,60 @@
 basePath: /
+definitions:
+  api.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  api.Payload:
+    properties:
+      account_id:
+        description: "AccountId is the unique identifier of the account associated
+          with the transaction\n\t@example\t880e8400-e29b-41d4-a716-446655440000"
+        type: string
+      amount:
+        description: "Amount is the amount of the transaction\n\t@example\t500"
+        type: integer
+      type:
+        description: "Type is the type of the transaction (e.g., credit or debit)
+          as an integer\n\t@example\t0"
+        type: integer
+    type: object
+  api.UserResponse:
+    properties:
+      createdAt:
+        description: "CreatedAt is the timestamp when the user was created\n\t@example\t2025-12-25T11:11:00Z"
+        type: string
+      id:
+        description: "Id is the unique identifier of the user\n\t@example\t550e8400-e29b-41d4-a716-446655440000"
+        type: string
+    type: object
+  model.Account:
+    properties:
+      balance:
+        type: integer
+      createdAt:
+        description: Milliseconds since epoch
+        type: integer
+      id:
+        type: string
+      userId:
+        type: string
+    type: object
+  model.Transaction:
+    properties:
+      accountId:
+        type: string
+      amount:
+        type: integer
+      createdAt:
+        description: Milliseconds since epoch
+        type: integer
+      id:
+        type: string
+      type:
+        description: Credit or Debit
+        type: integer
+    type: object
 host: localhost:8080
 info:
   contact: {}
@@ -8,19 +64,61 @@ info:
 paths:
   /accounts:
     post:
-      description: Creates a new account for a user
+      description: Creates a new account
+      parameters:
+      - description: Account creation payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          properties:
+            balance:
+              type: integer
+            userId:
+              type: string
+          type: object
       produces:
-      - text/plain
+      - application/json
       responses:
         "201":
-          description: Account created with ID
+          description: Account object
           schema:
-            type: string
+            $ref: '#/definitions/model.Account'
+        "400":
+          description: Invalid request payload
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
         "500":
           description: Failed to create account
           schema:
-            type: string
+            $ref: '#/definitions/api.ErrorResponse'
       summary: Create a new account
+  /accounts/{accountId}:
+    get:
+      description: Retrieves an account by its ID
+      parameters:
+      - description: Account ID
+        format: uuid
+        in: path
+        name: accountId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Account object
+          schema:
+            $ref: '#/definitions/model.Account'
+        "400":
+          description: Invalid account ID
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Account not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Get account
   /health:
     get:
       description: Returns 200 OK if the API is running
@@ -32,21 +130,99 @@ paths:
           schema:
             type: string
       summary: API Health check
+  /transactions:
+    post:
+      description: Creates a new transaction for an account
+      parameters:
+      - description: Transaction payload
+        in: body
+        name: transaction
+        required: true
+        schema:
+          $ref: '#/definitions/api.Payload'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Transaction object
+          schema:
+            $ref: '#/definitions/model.Transaction'
+        "400":
+          description: Invalid request payload
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Failed to create transaction
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Create a new transaction
+  /transactions/{transactionId}:
+    get:
+      description: Retrieves a transaction by its ID
+      parameters:
+      - description: Transaction ID
+        format: uuid
+        in: path
+        name: transactionId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Transaction object
+          schema:
+            $ref: '#/definitions/model.Transaction'
+        "400":
+          description: Invalid transaction ID
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: Transaction not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Get transaction
   /users:
     post:
       description: Creates a new user in the system
       produces:
-      - text/plain
+      - application/json
       responses:
         "201":
-          description: User created with ID
+          description: User object
           schema:
-            type: string
+            $ref: '#/definitions/api.UserResponse'
         "500":
           description: Failed to create user
           schema:
-            type: string
+            $ref: '#/definitions/api.ErrorResponse'
       summary: Create a new user
+  /users/{id}:
+    get:
+      description: Retrieves a user by their ID
+      parameters:
+      - description: User ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: User object
+          schema:
+            $ref: '#/definitions/api.UserResponse'
+        "400":
+          description: Invalid user ID
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Get user by ID
 schemes:
 - http
 swagger: "2.0"

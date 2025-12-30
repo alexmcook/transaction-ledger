@@ -1,9 +1,9 @@
-// @title Transaction Ledger API
-// @version 0.1.0
-// @description Transaction Ledger API for managing users and accounts
-// @host localhost:8080
-// @BasePath /
-// @schemes http
+// @title			Transaction Ledger API
+// @version		0.1.0
+// @description	Transaction Ledger API for managing users and accounts
+// @host			localhost:8080
+// @BasePath		/
+// @schemes		http
 package main
 
 import (
@@ -19,16 +19,17 @@ import (
 func main() {
 	ctx := context.Background()
 
-	isProd := os.Getenv("ENV") == "PROD"
+	isProd := os.Getenv("ENV") == "production"
 	logger, err := logger.Init(isProd)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
 		os.Exit(1)
 	}
 
-	var maxConns int32 = 200
+	var maxConns int32 = 110
 	pool, err := db.Connect(ctx, maxConns)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to connect to database: %v\n", err)
 		logger.ErrorContext(ctx, "Failed to connect to database", "error", err)
 		os.Exit(1)
 	}
@@ -45,6 +46,7 @@ func main() {
 	server := api.NewServer(svc, logger)
 	err = server.Run()
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "Server failed to start: %v\n", err)
 		logger.ErrorContext(ctx, "Server failed to start", "error", err)
 		os.Exit(1)
 	}

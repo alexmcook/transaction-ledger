@@ -2,8 +2,8 @@ package db
 
 import (
 	"context"
+	"errors"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/joho/godotenv"
 	"log/slog"
 	"os"
 )
@@ -16,14 +16,9 @@ type Store struct {
 }
 
 func Connect(ctx context.Context, maxConns int32) (*pgxpool.Pool, error) {
-	err := godotenv.Load()
-	if err != nil {
-		return nil, err
-	}
-
 	dbUrl, ok := os.LookupEnv("DATABASE_URL")
 	if !ok {
-		return nil, err
+		return nil, errors.New("DATABASE_URL environment variable not set")
 	}
 
 	config, err := pgxpool.ParseConfig(dbUrl)

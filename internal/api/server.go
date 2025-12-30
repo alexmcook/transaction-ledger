@@ -81,11 +81,11 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.Handle("POST /transactions", s.json(s.handleCreateTransaction()))
 }
 
-// @Summary API Health check
-// @Description Returns 200 OK if the API is running
-// @Produce plain
-// @Success 200 {string} string "OK"
-// @Router /health [get]
+// @Summary		API Health check
+// @Description	Returns 200 OK if the API is running
+// @Produce		plain
+// @Success		200	{string}	string	"OK"
+// @Router			/health [get]
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")

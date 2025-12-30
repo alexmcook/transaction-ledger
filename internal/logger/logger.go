@@ -12,16 +12,7 @@ func Init(isProd bool) (*slog.Logger, error) {
 		opts := &slog.HandlerOptions{
 			Level: slog.LevelInfo,
 		}
-		logDir := "logs"
-		if err := os.MkdirAll(logDir, 0755); err != nil {
-			return nil, err
-		}
-		logFile, err := os.OpenFile(logDir+"/app.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			return nil, err
-		}
-		defer logFile.Close()
-		logger = slog.New(slog.NewJSONHandler(logFile, opts))
+		logger = slog.New(slog.NewJSONHandler(os.Stdout, opts))
 	} else {
 		opts := &slog.HandlerOptions{
 			Level: slog.LevelDebug,
