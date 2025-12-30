@@ -53,8 +53,8 @@ func toTransactionResponse(t *model.Transaction) *TransactionResponse {
 // @Summary		Get transaction
 // @Description	Retrieves a transaction by its ID
 // @Produce		json
-// @Param			transactionId	path				string	true	"Transaction ID"	format(uuid)
-// @Success		200				{object}	model.Transaction	"Transaction object"
+// @Param			transactionId	path		string				true	"Transaction ID"	format(uuid)
+// @Success		200				{object}	TransactionResponse	"Transaction object"
 // @Failure		400				{object}	ErrorResponse		"Invalid transaction ID"
 // @Failure		404				{object}	ErrorResponse		"Transaction not found"
 // @Router			/transactions/{transactionId} [get]
@@ -79,8 +79,8 @@ func (s *Server) handleGetTransaction() http.HandlerFunc {
 // @Summary		Create a new transaction
 // @Description	Creates a new transaction for an account
 // @Produce		json
-// @Param			transaction	body				TransactionPayload	true	"Transaction payload"
-// @Success		201			{object}	model.Transaction	"Transaction object"
+// @Param			transaction	body		TransactionPayload	true	"Transaction payload"
+// @Success		201			{object}	TransactionResponse	"Transaction object"
 // @Failure		400			{object}	ErrorResponse		"Invalid request payload"
 // @Failure		500			{object}	ErrorResponse		"Failed to create transaction"
 // @Router			/transactions [post]

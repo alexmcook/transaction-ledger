@@ -12,6 +12,21 @@ definitions:
     - balance
     - userId
     type: object
+  api.AccountResponse:
+    properties:
+      balance:
+        description: "Balance is the current balance of the account\n\t@example\t1000"
+        type: integer
+      createdAt:
+        description: "CreatedAt is the timestamp when the user was created\n\t@example\t2025-12-25T11:11:00Z"
+        type: string
+      id:
+        description: "Id is the unique identifier of the account\n\t@example\t550e8400-e29b-41d4-a716-446655440000"
+        type: string
+      userId:
+        description: "UserId is the unique identifier of the user who owns the account\n\t@example\t660e8400-e29b-41d4-a716-446655440000"
+        type: string
+    type: object
   api.ErrorResponse:
     properties:
       error:
@@ -35,6 +50,25 @@ definitions:
     - amount
     - type
     type: object
+  api.TransactionResponse:
+    properties:
+      accountId:
+        description: "AccountId is the unique identifier of the account associated
+          with the transaction\n\t@example\t880e8400-e29b-41d4-a716-446655440000"
+        type: string
+      amount:
+        description: "Amount is the amount of the transaction\n\t@example\t500"
+        type: integer
+      createdAt:
+        description: "CreatedAt is the timestamp when the transaction was created\n\t@example\t2025-12-25T11:11:00Z"
+        type: string
+      id:
+        description: "Id is the unique identifier of the transaction\n\t@example\t770e8400-e29b-41d4-a716-446655440000"
+        type: string
+      type:
+        description: "Type is the type of the transaction (e.g., credit or debit)\n\t@example\t0"
+        type: integer
+    type: object
   api.UserResponse:
     properties:
       createdAt:
@@ -43,33 +77,6 @@ definitions:
       id:
         description: "Id is the unique identifier of the user\n\t@example\t550e8400-e29b-41d4-a716-446655440000"
         type: string
-    type: object
-  model.Account:
-    properties:
-      balance:
-        type: integer
-      createdAt:
-        description: Milliseconds since epoch
-        type: integer
-      id:
-        type: string
-      userId:
-        type: string
-    type: object
-  model.Transaction:
-    properties:
-      accountId:
-        type: string
-      amount:
-        type: integer
-      createdAt:
-        description: Milliseconds since epoch
-        type: integer
-      id:
-        type: string
-      type:
-        description: Credit or Debit
-        type: integer
     type: object
 host: localhost:8080
 info:
@@ -94,7 +101,7 @@ paths:
         "201":
           description: Account object
           schema:
-            $ref: '#/definitions/model.Account'
+            $ref: '#/definitions/api.AccountResponse'
         "400":
           description: Invalid request payload
           schema:
@@ -120,7 +127,7 @@ paths:
         "200":
           description: Account object
           schema:
-            $ref: '#/definitions/model.Account'
+            $ref: '#/definitions/api.AccountResponse'
         "400":
           description: Invalid account ID
           schema:
@@ -157,7 +164,7 @@ paths:
         "201":
           description: Transaction object
           schema:
-            $ref: '#/definitions/model.Transaction'
+            $ref: '#/definitions/api.TransactionResponse'
         "400":
           description: Invalid request payload
           schema:
@@ -183,7 +190,7 @@ paths:
         "200":
           description: Transaction object
           schema:
-            $ref: '#/definitions/model.Transaction'
+            $ref: '#/definitions/api.TransactionResponse'
         "400":
           description: Invalid transaction ID
           schema:

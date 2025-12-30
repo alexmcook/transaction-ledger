@@ -37,6 +37,7 @@ type AccountPayload struct {
 func toAccountResponse(a *model.Account) *AccountResponse {
 	return &AccountResponse{
 		Id:        a.Id,
+		UserId:    a.UserId,
 		Balance:   a.Balance,
 		CreatedAt: time.UnixMilli(a.CreatedAt),
 	}
@@ -46,7 +47,7 @@ func toAccountResponse(a *model.Account) *AccountResponse {
 // @Description	Retrieves an account by its ID
 // @Produce		json
 // @Param			accountId	path		string			true	"Account ID"	format(uuid)
-// @Success		200			{object}	model.Account	"Account object"
+// @Success		200			{object}	AccountResponse	"Account object"
 // @Failure		400			{object}	ErrorResponse	"Invalid account ID"
 // @Failure		404			{object}	ErrorResponse	"Account not found"
 // @Router			/accounts/{accountId} [get]
@@ -72,7 +73,7 @@ func (s *Server) handleGetAccount() http.HandlerFunc {
 // @Description	Creates a new account
 // @Produce		json
 // @Param			payload	body		AccountPayload	true	"Account creation payload"
-// @Success		201		{object}	model.Account	"Account object"
+// @Success		201		{object}	AccountResponse	"Account object"
 // @Failure		400		{object}	ErrorResponse	"Invalid request payload"
 // @Failure		500		{object}	ErrorResponse	"Failed to create account"
 // @Router			/accounts [post]
