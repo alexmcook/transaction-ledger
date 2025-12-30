@@ -32,7 +32,7 @@ services:
     env_file: .env
     environment:
       DATABASE_URL: ${DATABASE_URL}
-      ENV: production
+      ENV: ${ENV}
       GOMAXPROCS: 2
     ports:
       - "8080:8080"

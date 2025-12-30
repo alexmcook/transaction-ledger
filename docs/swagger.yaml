@@ -1,13 +1,25 @@
 basePath: /
 definitions:
+  api.AccountPayload:
+    properties:
+      balance:
+        description: "Balance is the initial balance of the account\n\t@example\t1000"
+        type: integer
+      userId:
+        description: "UserId is the unique identifier of the user who owns the account\n\t@example\t660e8400-e29b-41d4-a716-446655440000"
+        type: string
+    required:
+    - balance
+    - userId
+    type: object
   api.ErrorResponse:
     properties:
       error:
         type: string
     type: object
-  api.Payload:
+  api.TransactionPayload:
     properties:
-      account_id:
+      accountId:
         description: "AccountId is the unique identifier of the account associated
           with the transaction\n\t@example\t880e8400-e29b-41d4-a716-446655440000"
         type: string
@@ -18,6 +30,10 @@ definitions:
         description: "Type is the type of the transaction (e.g., credit or debit)
           as an integer\n\t@example\t0"
         type: integer
+    required:
+    - accountId
+    - amount
+    - type
     type: object
   api.UserResponse:
     properties:
@@ -71,12 +87,7 @@ paths:
         name: payload
         required: true
         schema:
-          properties:
-            balance:
-              type: integer
-            userId:
-              type: string
-          type: object
+          $ref: '#/definitions/api.AccountPayload'
       produces:
       - application/json
       responses:
@@ -139,7 +150,7 @@ paths:
         name: transaction
         required: true
         schema:
-          $ref: '#/definitions/api.Payload'
+          $ref: '#/definitions/api.TransactionPayload'
       produces:
       - application/json
       responses:

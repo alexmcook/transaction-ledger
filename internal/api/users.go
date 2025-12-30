@@ -24,14 +24,14 @@ func toUserResponse(u *model.User) *UserResponse {
 	}
 }
 
-//	@Summary		Get user by ID
-//	@Description	Retrieves a user by their ID
-//	@Produce		plain
-//	@Param			id	path		string			true	"User ID"	format(uuid)
-//	@Success		200	{object}	UserResponse	"User object"
-//	@Failure		400	{object}	ErrorResponse	"Invalid user ID"
-//	@Failure		404	{object}	ErrorResponse	"User not found"
-//	@Router			/users/{id} [get]
+// @Summary		Get user by ID
+// @Description	Retrieves a user by their ID
+// @Produce		plain
+// @Param			id	path		string			true	"User ID"	format(uuid)
+// @Success		200	{object}	UserResponse	"User object"
+// @Failure		400	{object}	ErrorResponse	"Invalid user ID"
+// @Failure		404	{object}	ErrorResponse	"User not found"
+// @Router			/users/{id} [get]
 func (s *Server) handleGetUser() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		userId, err := uuid.Parse(r.PathValue("userId"))
@@ -50,12 +50,12 @@ func (s *Server) handleGetUser() http.HandlerFunc {
 	}
 }
 
-//	@Summary		Create a new user
-//	@Description	Creates a new user in the system
-//	@Produce		json
-//	@Success		201	{object}	UserResponse	"User object"
-//	@Failure		500	{object}	ErrorResponse	"Failed to create user"
-//	@Router			/users [post]
+// @Summary		Create a new user
+// @Description	Creates a new user in the system
+// @Produce		json
+// @Success		201	{object}	UserResponse	"User object"
+// @Failure		500	{object}	ErrorResponse	"Failed to create user"
+// @Router			/users [post]
 func (s *Server) handleCreateUser() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, err := s.svc.Users.CreateUser(r.Context())

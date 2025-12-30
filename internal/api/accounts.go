@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"github.com/alexmcook/transaction-ledger/internal/model"
 	"github.com/google/uuid"
-	"io"
 	"net/http"
 	"time"
 )
@@ -25,6 +24,16 @@ type AccountResponse struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
+// AccountPayload represents the account data received in API requests
+type AccountPayload struct {
+	// UserId is the unique identifier of the user who owns the account
+	//	@example	660e8400-e29b-41d4-a716-446655440000
+	UserId uuid.UUID `json:"userId" binding:"required"`
+	// Balance is the initial balance of the account
+	//	@example	1000
+	Balance int64 `json:"balance" binding:"required"`
+}
+
 func toAccountResponse(a *model.Account) *AccountResponse {
 	return &AccountResponse{
 		Id:        a.Id,
@@ -33,14 +42,14 @@ func toAccountResponse(a *model.Account) *AccountResponse {
 	}
 }
 
-//	@Summary		Get account
-//	@Description	Retrieves an account by its ID
-//	@Produce		json
-//	@Param			accountId	path		string			true	"Account ID"	format(uuid)
-//	@Success		200			{object}	model.Account	"Account object"
-//	@Failure		400			{object}	ErrorResponse	"Invalid account ID"
-//	@Failure		404			{object}	ErrorResponse	"Account not found"
-//	@Router			/accounts/{accountId} [get]
+// @Summary		Get account
+// @Description	Retrieves an account by its ID
+// @Produce		json
+// @Param			accountId	path		string			true	"Account ID"	format(uuid)
+// @Success		200			{object}	model.Account	"Account object"
+// @Failure		400			{object}	ErrorResponse	"Invalid account ID"
+// @Failure		404			{object}	ErrorResponse	"Account not found"
+// @Router			/accounts/{accountId} [get]
 func (s *Server) handleGetAccount() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		accountId, err := uuid.Parse(r.PathValue("accountId"))
@@ -59,30 +68,23 @@ func (s *Server) handleGetAccount() http.HandlerFunc {
 	}
 }
 
-//	@Summary		Create a new account
-//	@Description	Creates a new account
-//	@Produce		json
-//	@Param			payload	body		object{userId=string,balance=int64}	true	"Account creation payload"
-//	@Success		201		{object}	model.Account						"Account object"
-//	@Failure		400		{object}	ErrorResponse						"Invalid request payload"
-//	@Failure		500		{object}	ErrorResponse						"Failed to create account"
-//	@Router			/accounts [post]
+// @Summary		Create a new account
+// @Description	Creates a new account
+// @Produce		json
+// @Param			payload	body		AccountPayload	true	"Account creation payload"
+// @Success		201		{object}	model.Account	"Account object"
+// @Failure		400		{object}	ErrorResponse	"Invalid request payload"
+// @Failure		500		{object}	ErrorResponse	"Failed to create account"
+// @Router			/accounts [post]
 func (s *Server) handleCreateAccount() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		type Payload struct {
-			UserId  uuid.UUID `json:"userId"`
-			Balance int64     `json:"balance"`
-		}
-		var p Payload
+		var p AccountPayload
 
 		r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // limit 1MB
-		b, err := io.ReadAll(r.Body)
-		if err != nil {
-			s.respondWithError(r.Context(), w, http.StatusBadRequest, "Failed to read request body", err)
-			return
-		}
+		dec := json.NewDecoder(r.Body)
+		dec.DisallowUnknownFields()
 
-		err = json.Unmarshal(b, &p)
+		err := dec.Decode(&p)
 		if err != nil {
 			s.respondWithError(r.Context(), w, http.StatusBadRequest, "Invalid JSON payload", err)
 			return
