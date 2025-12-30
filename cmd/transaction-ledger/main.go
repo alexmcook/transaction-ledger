@@ -8,11 +8,11 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/alexmcook/transaction-ledger/internal/api"
 	"github.com/alexmcook/transaction-ledger/internal/db"
 	"github.com/alexmcook/transaction-ledger/internal/logger"
 	"github.com/alexmcook/transaction-ledger/internal/service"
-	"github.com/joho/godotenv"
 	"os"
 )
 
@@ -20,19 +20,17 @@ func main() {
 	ctx := context.Background()
 
 	isProd := os.Getenv("ENV") == "PROD"
-	logger := logger.Init(isProd)
-
-	err := godotenv.Load()
+	logger, err := logger.Init(isProd)
 	if err != nil {
-		logger.Error("Error loading .env file", "error", err)
-		return
+		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
+		os.Exit(1)
 	}
 
-	dbUrl := os.Getenv("DATABASE_URL")
-	pool, err := db.Connect(ctx, dbUrl)
+	var maxConns int32 = 200
+	pool, err := db.Connect(ctx, maxConns)
 	if err != nil {
-		logger.Error("Failed to connect to database", "error", err)
-		return
+		logger.ErrorContext(ctx, "Failed to connect to database", "error", err)
+		os.Exit(1)
 	}
 	defer pool.Close()
 
@@ -47,6 +45,7 @@ func main() {
 	server := api.NewServer(svc, logger)
 	err = server.Run()
 	if err != nil {
-		logger.Error("Server failed to start", "error", err)
+		logger.ErrorContext(ctx, "Server failed to start", "error", err)
+		os.Exit(1)
 	}
 }

@@ -40,8 +40,13 @@ func TestHandleGetUser(t *testing.T) {
 		Users: &MockUserStore{},
 	}
 
+	logger, err := logger.Init(false)
+	if err != nil {
+		t.Fatalf("Failed to initialize logger: %v", err)
+	}
+
 	s := &Server{
-		logger: logger.Init(false),
+		logger: logger,
 		svc:    svc,
 	}
 
@@ -72,8 +77,13 @@ func TestHandleCreateUser(t *testing.T) {
 				Users: &MockUserStore{},
 			}
 
+			logger, err := logger.Init(false)
+			if err != nil {
+				t.Fatalf("Failed to initialize logger: %v", err)
+			}
+
 			s := &Server{
-				logger: logger.Init(false),
+				logger: logger,
 				svc:    svc,
 			}
 

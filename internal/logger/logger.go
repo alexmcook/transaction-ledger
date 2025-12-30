@@ -5,14 +5,23 @@ import (
 	"os"
 )
 
-func Init(isProd bool) *slog.Logger {
+func Init(isProd bool) (*slog.Logger, error) {
 	var logger *slog.Logger
 
 	if isProd {
 		opts := &slog.HandlerOptions{
 			Level: slog.LevelInfo,
 		}
-		logger = slog.New(slog.NewJSONHandler(os.Stdout, opts))
+		logDir := "logs"
+		if err := os.MkdirAll(logDir, 0755); err != nil {
+			return nil, err
+		}
+		logFile, err := os.OpenFile(logDir+"/app.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			return nil, err
+		}
+		defer logFile.Close()
+		logger = slog.New(slog.NewJSONHandler(logFile, opts))
 	} else {
 		opts := &slog.HandlerOptions{
 			Level: slog.LevelDebug,
@@ -27,5 +36,5 @@ func Init(isProd bool) *slog.Logger {
 	}
 	slog.SetDefault(logger)
 
-	return logger
+	return logger, nil
 }

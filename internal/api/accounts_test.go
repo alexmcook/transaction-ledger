@@ -46,8 +46,13 @@ func TestHandleGetAccount(t *testing.T) {
 		Accounts: &MockAccountStore{},
 	}
 
+	logger, err := logger.Init(false)
+	if err != nil {
+		t.Fatalf("Failed to initialize logger: %v", err)
+	}
+
 	s := &Server{
-		logger: logger.Init(false),
+		logger: logger,
 		svc:    svc,
 	}
 
@@ -87,8 +92,13 @@ func TestHandleCreateAccount(t *testing.T) {
 			Accounts: &MockAccountStore{},
 		}
 
+		logger, err := logger.Init(false)
+		if err != nil {
+			t.Fatalf("Failed to initialize logger: %v", err)
+		}
+
 		s := &Server{
-			logger: logger.Init(false),
+			logger: logger,
 			svc:    svc,
 		}
 

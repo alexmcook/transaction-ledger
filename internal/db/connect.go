@@ -3,7 +3,9 @@ package db
 import (
 	"context"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
 	"log/slog"
+	"os"
 )
 
 type Store struct {
@@ -13,8 +15,24 @@ type Store struct {
 	Transactions *TransactionsRepo
 }
 
-func Connect(ctx context.Context, dbUrl string) (*pgxpool.Pool, error) {
-	pool, err := pgxpool.New(ctx, dbUrl)
+func Connect(ctx context.Context, maxConns int32) (*pgxpool.Pool, error) {
+	err := godotenv.Load()
+	if err != nil {
+		return nil, err
+	}
+
+	dbUrl, ok := os.LookupEnv("DATABASE_URL")
+	if !ok {
+		return nil, err
+	}
+
+	config, err := pgxpool.ParseConfig(dbUrl)
+	if err != nil {
+		return nil, err
+	}
+
+	config.MaxConns = maxConns
+	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
 		return nil, err
 	}
