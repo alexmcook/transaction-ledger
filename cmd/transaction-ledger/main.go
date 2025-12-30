@@ -13,10 +13,21 @@ import (
 	"github.com/alexmcook/transaction-ledger/internal/db"
 	"github.com/alexmcook/transaction-ledger/internal/logger"
 	"github.com/alexmcook/transaction-ledger/internal/service"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"net/http"
 	"os"
 )
 
 func main() {
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		err := http.ListenAndServe(":2112", nil)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to start metrics server: %v\n", err)
+			os.Exit(1)
+		}
+	}()
+
 	ctx := context.Background()
 
 	isProd := os.Getenv("ENV") == "production"

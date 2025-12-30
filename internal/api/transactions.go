@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"github.com/alexmcook/transaction-ledger/internal/metrics"
 	"github.com/alexmcook/transaction-ledger/internal/model"
 	"github.com/google/uuid"
 	"net/http"
@@ -109,6 +110,8 @@ func (s *Server) handleCreateTransaction() http.HandlerFunc {
 			s.respondWithError(r.Context(), w, http.StatusInternalServerError, "Failed to update account balance", err)
 			return
 		}
+
+		metrics.TransactionsSuccess.Inc()
 
 		s.respondWithJSON(r.Context(), w, http.StatusCreated, toTransactionResponse(transaction))
 	}
