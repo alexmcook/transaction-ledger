@@ -27,37 +27,6 @@ func (m *MockTransactionStore) CreateTransaction(ctx context.Context, accountId 
 	return &model.Transaction{Id: uuid}, nil
 }
 
-func TestHandleCreateTransaction(t *testing.T) {
-	uuid, err := uuid.NewV7()
-	if err != nil {
-		t.Fatalf("failed to generate UUID: %v", err)
-	}
-
-	payload := fmt.Appendf(nil, `{"accountId": "%s", "amount": 50}`, uuid)
-	req := httptest.NewRequest(http.MethodPost, "/transactions", bytes.NewReader(payload))
-	req.Header.Set("Content-Type", "application/json")
-
-	w := httptest.NewRecorder()
-
-	// Mock service
-	svc := &service.Service{
-		Transactions: &MockTransactionStore{},
-	}
-
-	s := &Server{
-		logger: logger.Init(false),
-		svc:    svc,
-	}
-
-	handler := s.handleCreateTransaction()
-	handler(w, req)
-
-	resp := w.Result()
-	if resp.StatusCode != http.StatusCreated {
-		t.Errorf("expected status 201 Created, got %d", resp.StatusCode)
-	}
-}
-
 func TestHandleGetTransaction(t *testing.T) {
 	uuid, err := uuid.NewV7()
 	if err != nil {
@@ -87,38 +56,32 @@ func TestHandleGetTransaction(t *testing.T) {
 	}
 }
 
-func TestHandleTransactions(t *testing.T) {
+func TestHandleCreateTransaction(t *testing.T) {
 	uuid, err := uuid.NewV7()
 	if err != nil {
-		t.Fatalf("failed to generate uuid: %v", err)
+		t.Fatalf("failed to generate UUID: %v", err)
 	}
 
 	var tests = []struct {
 		name         string
-		method       string
-		url          string
-		body         []byte
+		payload      []byte
 		expectedCode int
 	}{
-		{"GET", http.MethodGet, "/transactions", nil, http.StatusNoContent},
-		{"GET", http.MethodGet, "/transactions/" + uuid.String(), nil, http.StatusOK},
-		{"POST", http.MethodPost, "/transactions", fmt.Appendf(nil, `{"accountId": "%s", "amount": 50}`, uuid), http.StatusCreated},
+		{"ValidTransaction", fmt.Appendf(nil, `{"accountId":"%s","type":1,"amount":1000}`, uuid.String()), http.StatusCreated},
+		{"InvalidAccountId", []byte(`{"accountId":"invalid-uuid","type":1,"amount":1000}`), http.StatusBadRequest},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var req *http.Request
-			if tt.body == nil {
-				req = httptest.NewRequest(tt.method, tt.url, nil)
-			} else {
-				req = httptest.NewRequest(tt.method, tt.url, bytes.NewReader(tt.body))
-				req.Header.Set("Content-Type", "application/json")
-			}
+			req := httptest.NewRequest(http.MethodPost, "/transactions", bytes.NewReader(tt.payload))
+			req.Header.Set("Content-Type", "application/json")
+
 			w := httptest.NewRecorder()
 
 			// Mock service
 			svc := &service.Service{
 				Transactions: &MockTransactionStore{},
+				Accounts:     &MockAccountStore{},
 			}
 
 			s := &Server{
@@ -126,12 +89,12 @@ func TestHandleTransactions(t *testing.T) {
 				svc:    svc,
 			}
 
-			handler := s.handleTransactions()
+			handler := s.handleCreateTransaction()
 			handler(w, req)
 
 			resp := w.Result()
 			if resp.StatusCode != tt.expectedCode {
-				t.Errorf("for %s %s: expected status %d, got %d", tt.method, tt.url, tt.expectedCode, resp.StatusCode)
+				t.Errorf("expected status %d, got %d", tt.expectedCode, resp.StatusCode)
 			}
 		})
 	}

@@ -27,35 +27,8 @@ func (m *MockAccountStore) CreateAccount(ctx context.Context, userId uuid.UUID, 
 	return &model.Account{Id: uuid}, nil
 }
 
-func TestHandleCreateAccount(t *testing.T) {
-	uuid, err := uuid.NewV7()
-	if err != nil {
-		t.Fatalf("failed to generate UUID: %v", err)
-	}
-
-	payload := fmt.Appendf(nil, `{"userId": "%s", "balance": 100}`, uuid)
-	req := httptest.NewRequest(http.MethodPost, "/accounts", bytes.NewReader(payload))
-	req.Header.Set("Content-Type", "application/json")
-
-	w := httptest.NewRecorder()
-
-	// Mock service
-	svc := &service.Service{
-		Accounts: &MockAccountStore{},
-	}
-
-	s := &Server{
-		logger: logger.Init(false),
-		svc:    svc,
-	}
-
-	handler := s.handleCreateAccount()
-	handler(w, req)
-
-	resp := w.Result()
-	if resp.StatusCode != http.StatusCreated {
-		t.Errorf("expected status 201 Created, got %d", resp.StatusCode)
-	}
+func (m *MockAccountStore) UpdateAccountBalance(ctx context.Context, accountId uuid.UUID, amount int64) error {
+	return nil
 }
 
 func TestHandleGetAccount(t *testing.T) {
@@ -87,7 +60,7 @@ func TestHandleGetAccount(t *testing.T) {
 	}
 }
 
-func TestHandleAccounts(t *testing.T) {
+func TestHandleCreateAccount(t *testing.T) {
 	uuid, err := uuid.NewV7()
 	if err != nil {
 		t.Fatalf("failed to generate UUID: %v", err)
@@ -95,44 +68,36 @@ func TestHandleAccounts(t *testing.T) {
 
 	var tests = []struct {
 		name         string
-		method       string
 		url          string
-		body         []byte
+		payload      []byte
 		expectedCode int
 	}{
-		{"GET", http.MethodGet, "/accounts", nil, http.StatusNoContent},
-		{"GET", http.MethodGet, "/accounts/" + uuid.String(), nil, http.StatusOK},
-		{"POST", http.MethodPost, "/accounts", fmt.Appendf(nil, `{"userId": "%s", "balance": 100}`, uuid), http.StatusCreated},
+		{"ValidAccount", "/accounts", fmt.Appendf(nil, `{"userId": "%s", "balance": %d}`, uuid.String(), 100), http.StatusCreated},
+		{"InvalidUserId", "/accounts", []byte(`{"userId": "invalid-uuid", "balance": 100}`), http.StatusBadRequest},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var req *http.Request
-			if tt.body == nil {
-				req = httptest.NewRequest(tt.method, tt.url, nil)
-			} else {
-				req = httptest.NewRequest(tt.method, tt.url, bytes.NewReader(tt.body))
-				req.Header.Set("Content-Type", "application/json")
-			}
-			w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/accounts", bytes.NewReader(tt.payload))
+		req.Header.Set("Content-Type", "application/json")
 
-			// Mock service
-			svc := &service.Service{
-				Accounts: &MockAccountStore{},
-			}
+		w := httptest.NewRecorder()
 
-			s := &Server{
-				logger: logger.Init(false),
-				svc:    svc,
-			}
+		// Mock service
+		svc := &service.Service{
+			Accounts: &MockAccountStore{},
+		}
 
-			handler := s.handleAccounts()
-			handler(w, req)
+		s := &Server{
+			logger: logger.Init(false),
+			svc:    svc,
+		}
 
-			resp := w.Result()
-			if resp.StatusCode != tt.expectedCode {
-				t.Errorf("for %s %s: expected status %d, got %d", tt.method, tt.url, tt.expectedCode, resp.StatusCode)
-			}
-		})
+		handler := s.handleCreateAccount()
+		handler(w, req)
+
+		resp := w.Result()
+		if resp.StatusCode != tt.expectedCode {
+			t.Errorf("expected status %d, got %d", tt.expectedCode, resp.StatusCode)
+		}
 	}
 }

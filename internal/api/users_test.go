@@ -25,31 +25,6 @@ func (m *MockUserStore) CreateUser(ctx context.Context) (*model.User, error) {
 	return &model.User{Id: uuid}, nil
 }
 
-func TestHandleCreateUser(t *testing.T) {
-	req := httptest.NewRequest(http.MethodPost, "/users", nil)
-	req.Header.Set("Content-Type", "application/json")
-
-	w := httptest.NewRecorder()
-
-	// Mock service
-	svc := &service.Service{
-		Users: &MockUserStore{},
-	}
-
-	s := &Server{
-		logger: logger.Init(false),
-		svc:    svc,
-	}
-
-	handler := s.handleCreateUser()
-	handler(w, req)
-
-	resp := w.Result()
-	if resp.StatusCode != http.StatusCreated {
-		t.Errorf("expected status 201 Created, got %d", resp.StatusCode)
-	}
-}
-
 func TestHandleGetUser(t *testing.T) {
 	uuid, err := uuid.NewV7()
 	if err != nil {
@@ -79,26 +54,17 @@ func TestHandleGetUser(t *testing.T) {
 	}
 }
 
-func TestHandleUsers(t *testing.T) {
-	uuid, err := uuid.NewV7()
-	if err != nil {
-		t.Fatalf("failed to generate uuid: %v", err)
-	}
-
+func TestHandleCreateUser(t *testing.T) {
 	var tests = []struct {
 		name         string
-		method       string
 		url          string
 		expectedCode int
 	}{
-		{"GET", http.MethodGet, "/users", http.StatusNoContent},
-		{"GET", http.MethodGet, "/users/" + uuid.String(), http.StatusOK},
-		{"POST", http.MethodPost, "/users", http.StatusCreated},
+		{"Valid", "/users", http.StatusCreated},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(tt.method, tt.url, nil)
+			req := httptest.NewRequest(http.MethodPost, tt.url, nil)
 			w := httptest.NewRecorder()
 
 			// Mock service
@@ -111,7 +77,7 @@ func TestHandleUsers(t *testing.T) {
 				svc:    svc,
 			}
 
-			handler := s.handleUsers()
+			handler := s.handleCreateUser()
 			handler(w, req)
 
 			resp := w.Result()
