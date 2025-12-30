@@ -46,3 +46,8 @@ func (r *AccountsRepo) CreateAccount(ctx context.Context, userId uuid.UUID, init
 	}
 	return &account, nil
 }
+
+func (r *AccountsRepo) UpdateAccountBalance(ctx context.Context, accountId uuid.UUID, amount int64) error {
+	_, err := r.pool.Exec(ctx, "UPDATE accounts SET balance = balance + $1 WHERE id = $2", amount, accountId)
+	return err
+}

@@ -99,6 +99,12 @@ func (s *Server) handleCreateTransaction() http.HandlerFunc {
 			return
 		}
 
+		err = s.svc.Accounts.UpdateAccountBalance(r.Context(), p.AccountId, p.Amount)
+		if err != nil {
+			s.respondWithError(r.Context(), w, http.StatusInternalServerError, "Failed to update account balance", err)
+			return
+		}
+
 		s.respondWithJSON(r.Context(), w, http.StatusCreated, toTransactionResponse(transaction))
 	}
 }

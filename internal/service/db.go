@@ -15,6 +15,7 @@ type UserStore interface {
 type AccountStore interface {
 	GetAccount(ctx context.Context, id uuid.UUID) (*model.Account, error)
 	CreateAccount(ctx context.Context, userId uuid.UUID, initialBalance int64) (*model.Account, error)
+	UpdateAccountBalance(ctx context.Context, accountId uuid.UUID, amount int64) error
 }
 
 type TransactionStore interface {
