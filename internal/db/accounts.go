@@ -19,8 +19,20 @@ func NewAccountsRepo(pool *pgxpool.Pool) *AccountsRepo {
 func (r *AccountsRepo) GetAccount(ctx context.Context, id uuid.UUID) (*model.Account, error) {
 	var account model.Account
 
+	query := `
+		SELECT
+			a.id, 
+			a.user_id,
+			a.balance + COALESCE(SUM(t.amount), 0) AS balance,
+			a.created_at
+		FROM accounts a
+		LEFT JOIN transactions t ON t.account_id = a.id
+		WHERE a.id = $1
+		GROUP BY a.id, a.user_id, a.balance, a.created_at
+	`
+
 	err := r.pool.
-		QueryRow(ctx, "SELECT id, user_id, balance, created_at FROM accounts WHERE id = $1", id).
+		QueryRow(ctx, query, id).
 		Scan(&account.Id, &account.UserId, &account.Balance, &account.CreatedAt)
 	if err != nil {
 		return nil, err
