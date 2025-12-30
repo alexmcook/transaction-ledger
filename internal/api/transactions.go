@@ -2,56 +2,75 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
+	"github.com/alexmcook/transaction-ledger/internal/model"
 	"github.com/google/uuid"
 	"io"
 	"net/http"
-	"strings"
+	"time"
 )
 
-func (s *Server) handleTransactions() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		p := strings.Trim(r.URL.Path, "/")
-		parts := strings.Split(p, "/")
-		switch r.Method {
-		case http.MethodGet:
-			if len(parts) != 2 {
-				w.WriteHeader(http.StatusNoContent)
-				return
-			}
-			// Extract transaction ID from URL
-			r.SetPathValue("transactionId", parts[1])
-			s.handleGetTransaction()(w, r)
-			return
-		case http.MethodPost:
-			s.handleCreateTransaction()(w, r)
-			return
-		default:
-			http.Error(w, "Not Found", http.StatusNotFound)
-			return
-		}
+type TransactionResponse struct {
+	// Id is the unique identifier of the transaction
+	// @example 770e8400-e29b-41d4-a716-446655440000
+	Id uuid.UUID `json:"id"`
+	// AccountId is the unique identifier of the account associated with the transaction
+	// @example 880e8400-e29b-41d4-a716-446655440000
+	AccountId uuid.UUID `json:"accountId"`
+	// Amount is the amount of the transaction
+	// @example 500
+	Amount int64 `json:"amount"`
+	// Type is the type of the transaction (e.g., credit or debit)
+	// @example 0
+	Type int `json:"type"`
+	// CreatedAt is the timestamp when the transaction was created
+	// @example 2025-12-25T11:11:00Z
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+func toTransactionResponse(t *model.Transaction) *TransactionResponse {
+	return &TransactionResponse{
+		Id:        t.Id,
+		AccountId: t.AccountId,
+		Amount:    t.Amount,
+		Type:      t.Type,
+		CreatedAt: time.UnixMilli(t.CreatedAt),
 	}
 }
 
+// @Summary      Get transaction
+// @Description  Retrieves a transaction by its ID
+// @Produce      json
+// @Param        transactionId path string true "Transaction ID"
+// @Success      200 {object} model.Transaction "Transaction object"
+// @Failure      400 {object} ErrorResponse "Invalid transaction ID"
+// @Failure      404 {object} ErrorResponse "Transaction not found"
+// @Router       /transactions/{transactionId} [get]
 func (s *Server) handleGetTransaction() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		transactionId, err := uuid.Parse(r.PathValue("transactionId"))
 		if err != nil {
-			http.Error(w, "Invalid transaction ID", http.StatusBadRequest)
+			s.respondWithError(r.Context(), w, http.StatusBadRequest, "Invalid transaction ID format", err)
 			return
 		}
 
 		transaction, err := s.svc.Transactions.GetTransaction(r.Context(), transactionId)
 		if err != nil {
-			http.Error(w, "Transaction not found", http.StatusNotFound)
+			s.respondWithError(r.Context(), w, http.StatusNotFound, "Transaction not found", err)
 			return
 		}
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "Transaction ID: %d\nAccount ID: %d\nTransaction amount: %d", transaction.Id, transaction.AccountId, transaction.Amount)
+
+		s.respondWithJSON(r.Context(), w, http.StatusOK, toTransactionResponse(transaction))
 	}
 }
 
+// @Summary      Create a new transaction
+// @Description  Creates a new transaction for an account
+// @Produce      json
+// @Param        transaction body TransactionResponse true "Transaction payload"
+// @Success      201 {object} model.Transaction "Transaction object"
+// @Failure      400 {object} ErrorResponse "Invalid request payload"
+// @Failure      500 {object} ErrorResponse "Failed to create transaction"
+// @Router       /transactions [post]
 func (s *Server) handleCreateTransaction() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		type Payload struct {
@@ -64,23 +83,22 @@ func (s *Server) handleCreateTransaction() http.HandlerFunc {
 		r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // limit 1MB
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, "Failed to read request body", http.StatusBadRequest)
+			s.respondWithError(r.Context(), w, http.StatusBadRequest, "Failed to read request body", err)
 			return
 		}
 
 		err = json.Unmarshal(b, &p)
 		if err != nil {
-			http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+			s.respondWithError(r.Context(), w, http.StatusBadRequest, "Invalid JSON payload", err)
 			return
 		}
 
 		transaction, err := s.svc.Transactions.CreateTransaction(r.Context(), p.AccountId, p.Type, p.Amount)
 		if err != nil {
-			http.Error(w, "Failed to create transaction: "+err.Error(), http.StatusInternalServerError)
+			s.respondWithError(r.Context(), w, http.StatusInternalServerError, "Failed to create transaction", err)
 			return
 		}
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.WriteHeader(http.StatusCreated)
-		fmt.Fprintf(w, "Transaction created with ID: %d", transaction.Id)
+
+		s.respondWithJSON(r.Context(), w, http.StatusCreated, toTransactionResponse(transaction))
 	}
 }

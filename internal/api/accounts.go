@@ -2,63 +2,71 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
+	"github.com/alexmcook/transaction-ledger/internal/model"
 	"github.com/google/uuid"
 	"io"
 	"net/http"
-	"strings"
+	"time"
 )
 
-// @Summary Create a new account
-// @Description Creates a new account for a user
-// @Produce plain
-// @Success 201 {string} string "Account created with ID"
-// @Failure 500 {string} string "Failed to create account"
-// @Router /accounts [post]
-func (s *Server) handleAccounts() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		p := strings.Trim(r.URL.Path, "/")
-		parts := strings.Split(p, "/")
-		switch r.Method {
-		case http.MethodGet:
-			if len(parts) != 2 {
-				w.WriteHeader(http.StatusNoContent)
-				return
-			}
-			// Extract account ID from URL
-			r.SetPathValue("accountId", parts[1])
-			s.handleGetAccount()(w, r)
-			return
-		case http.MethodPost:
-			s.handleCreateAccount()(w, r)
-			return
-		default:
-			http.Error(w, "Not Found", http.StatusNotFound)
-			return
-		}
+// AccountResponse represents the account data returned in API responses
+type AccountResponse struct {
+	// Id is the unique identifier of the account
+	// @example 550e8400-e29b-41d4-a716-446655440000
+	Id uuid.UUID `json:"id"`
+	// UserId is the unique identifier of the user who owns the account
+	// @example 660e8400-e29b-41d4-a716-446655440000
+	UserId uuid.UUID `json:"userId"`
+	// Balance is the current balance of the account
+	// @example 1000
+	Balance int64 `json:"balance"`
+	// CreatedAt is the timestamp when the user was created
+	// @example 2025-12-25T11:11:00Z
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+func toAccountResponse(a *model.Account) *AccountResponse {
+	return &AccountResponse{
+		Id:        a.Id,
+		Balance:   a.Balance,
+		CreatedAt: time.UnixMilli(a.CreatedAt),
 	}
 }
 
+// @Summary      Get account
+// @Description  Retrieves an account by its ID
+// @Produce      json
+// @Param        accountId path string true "Account ID"
+// @Success      200 {object} model.Account "Account object"
+// @Failure      400 {object} ErrorResponse "Invalid account ID"
+// @Failure      404 {object} ErrorResponse "Account not found"
+// @Router       /accounts/{accountId} [get]
 func (s *Server) handleGetAccount() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		accountId, err := uuid.Parse(r.PathValue("accountId"))
 		if err != nil {
-			http.Error(w, "Invalid account ID", http.StatusBadRequest)
+			s.respondWithError(r.Context(), w, http.StatusBadRequest, "Invalid account ID format", err)
 			return
 		}
 
 		account, err := s.svc.Accounts.GetAccount(r.Context(), accountId)
 		if err != nil {
-			http.Error(w, "Account not found", http.StatusNotFound)
+			s.respondWithError(r.Context(), w, http.StatusNotFound, "Account not found", err)
 			return
 		}
 
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "Account ID: %d\nUser ID: %d\nAccount balance: %d", account.Id, account.UserId, account.Balance)
+		s.respondWithJSON(r.Context(), w, http.StatusOK, toAccountResponse(account))
 	}
 }
 
+// @Summary      Create a new account
+// @Description  Creates a new account
+// @Produce      json
+// @Param        payload body object{userId=string,balance=int64} true "Account creation payload"
+// @Success      201 {object} model.Account "Account object"
+// @Failure      400 {object} ErrorResponse "Invalid request payload"
+// @Failure      500 {object} ErrorResponse "Failed to create account"
+// @Router       /accounts [post]
 func (s *Server) handleCreateAccount() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		type Payload struct {
@@ -70,23 +78,22 @@ func (s *Server) handleCreateAccount() http.HandlerFunc {
 		r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // limit 1MB
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, "Failed to read request body", http.StatusBadRequest)
+			s.respondWithError(r.Context(), w, http.StatusBadRequest, "Failed to read request body", err)
 			return
 		}
 
 		err = json.Unmarshal(b, &p)
 		if err != nil {
-			http.Error(w, "Invalid JSON payload", http.StatusBadRequest)
+			s.respondWithError(r.Context(), w, http.StatusBadRequest, "Invalid JSON payload", err)
 			return
 		}
 
 		account, err := s.svc.Accounts.CreateAccount(r.Context(), p.UserId, p.Balance)
 		if err != nil {
-			http.Error(w, "Failed to create account", http.StatusInternalServerError)
+			s.respondWithError(r.Context(), w, http.StatusInternalServerError, "Failed to create account", err)
 			return
 		}
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.WriteHeader(http.StatusCreated)
-		fmt.Fprintf(w, "Account created with ID: %d", account.Id)
+
+		s.respondWithJSON(r.Context(), w, http.StatusCreated, toAccountResponse(account))
 	}
 }

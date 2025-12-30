@@ -72,13 +72,13 @@ func (s *Server) respondWithJSON(ctx context.Context, w http.ResponseWriter, cod
 }
 
 func (s *Server) registerRoutes(mux *http.ServeMux) {
-	mux.Handle("/health", http.HandlerFunc(s.handleHealth))
-	mux.Handle("/users", s.json(s.handleUsers()))
-	mux.Handle("/users/", s.json(s.handleUsers()))
-	mux.Handle("/accounts", s.json(s.handleAccounts()))
-	mux.Handle("/accounts/", s.json(s.handleAccounts()))
-	mux.Handle("/transactions", s.json(s.handleTransactions()))
-	mux.Handle("/transactions/", s.json(s.handleTransactions()))
+	mux.Handle("GET /health", http.HandlerFunc(s.handleHealth))
+	mux.Handle("GET /users/{userId}", s.json(s.handleGetUser()))
+	mux.Handle("GET /accounts/{accountId}", s.json(s.handleGetAccount()))
+	mux.Handle("GET /transactions/{transactionId}", s.json(s.handleGetTransaction()))
+	mux.Handle("POST /users", s.json(s.handleCreateUser()))
+	mux.Handle("POST /accounts", s.json(s.handleCreateAccount()))
+	mux.Handle("POST /transactions", s.json(s.handleCreateTransaction()))
 }
 
 // @Summary API Health check

@@ -4,33 +4,8 @@ import (
 	"github.com/alexmcook/transaction-ledger/internal/model"
 	"github.com/google/uuid"
 	"net/http"
-	"strings"
 	"time"
 )
-
-func (s *Server) handleUsers() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		p := strings.Trim(r.URL.Path, "/")
-		parts := strings.Split(p, "/")
-		switch r.Method {
-		case http.MethodGet:
-			if len(parts) != 2 {
-				w.WriteHeader(http.StatusNoContent)
-				return
-			}
-			// Extract user ID from URL
-			r.SetPathValue("userId", parts[1])
-			s.handleGetUser()(w, r)
-			return
-		case http.MethodPost:
-			s.handleCreateUser()(w, r)
-			return
-		default:
-			http.Error(w, "Not Found", http.StatusNotFound)
-			return
-		}
-	}
-}
 
 // UserResponse represents the user data returned in API responses
 type UserResponse struct {
