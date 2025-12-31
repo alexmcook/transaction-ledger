@@ -8,7 +8,7 @@ const account_ids = new SharedArray('account_ids', function () {
 });
 
 export const options = {
-  vus: 200,
+  vus: 1000,
   duration: '20s',
 
   // stages: [
@@ -33,7 +33,10 @@ export default function () {
   });
 
   const params = {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      'Connection': 'keep-alive',
+    },
   };
 
   const res = http.post('http://localhost:8080/transactions', payload, params);

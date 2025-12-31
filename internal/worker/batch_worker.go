@@ -14,6 +14,7 @@ type Batchable interface {
 }
 
 type BatchWorker struct {
+	id             int
 	logger         *slog.Logger
 	txChan         chan *model.Transaction
 	batchSize      int
@@ -32,8 +33,9 @@ type BatchWorkerOpts struct {
 	BucketProvider db.BucketProvider
 }
 
-func NewBatchWorker(opts BatchWorkerOpts) *BatchWorker {
+func NewBatchWorker(workerId int, opts BatchWorkerOpts) *BatchWorker {
 	return &BatchWorker{
+		id:             workerId,
 		logger:         opts.Logger,
 		txChan:         opts.TxChan,
 		batchSize:      opts.BatchSize,
@@ -45,7 +47,7 @@ func NewBatchWorker(opts BatchWorkerOpts) *BatchWorker {
 
 func (bw *BatchWorker) Start(ctx context.Context) {
 	bw.workerOnce.Do(func() {
-		bw.logger.Debug("BatchWorker: starting batch worker", slog.Duration("batch_interval", bw.batchInterval), slog.Int("batch_size", bw.batchSize))
+		bw.logger.Debug("BatchWorker: starting batch worker", slog.Int("id", bw.id), slog.Duration("batch_interval", bw.batchInterval), slog.Int("batch_size", bw.batchSize))
 		go bw.batchRoutine(ctx)
 	})
 }
@@ -59,7 +61,7 @@ func (bw *BatchWorker) batchRoutine(ctx context.Context) {
 		select {
 		case tx, ok := <-bw.txChan:
 			if !ok {
-				bw.logger.Debug("BatchWorker: txChan closed")
+				bw.logger.Debug("BatchWorker: txChan closed", slog.Int("id", bw.id))
 				if len(batch) > 0 {
 					bw.processBatch(batch)
 				}
@@ -78,7 +80,7 @@ func (bw *BatchWorker) batchRoutine(ctx context.Context) {
 				batch = batch[:0] // Reset batch
 			}
 		case <-ctx.Done():
-			bw.logger.Debug("BatchWorker: shutting down")
+			bw.logger.Debug("BatchWorker: shutting down", slog.Int("id", bw.id))
 			if len(batch) > 0 {
 				bw.processBatch(batch)
 			}
@@ -93,9 +95,9 @@ func (bw *BatchWorker) processBatch(batch []*model.Transaction) {
 
 	bucketId := bw.bucketProvider.GetActiveBucket()
 
-	bw.logger.Debug("BatchWorker: processing batch", slog.Int("batch_size", len(batch)), slog.Int("bucket", int(bucketId)))
+	bw.logger.Debug("BatchWorker: processing batch", slog.Int("id", bw.id), slog.Int("batch_size", len(batch)), slog.Int("bucket", int(bucketId)))
 	err := bw.batchable.BatchProcess(ctx, batch, bucketId)
 	if err != nil {
-		bw.logger.Error("BatchWorker: error processing batch", slog.String("error", err.Error()))
+		bw.logger.Error("BatchWorker: error processing batch", slog.Int("bw", bw.id), slog.String("error", err.Error()))
 	}
 }

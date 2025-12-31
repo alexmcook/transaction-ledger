@@ -5,13 +5,47 @@ import (
 	"fmt"
 	"github.com/alexmcook/transaction-ledger/internal/model"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
+	// "github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"time"
 )
 
 type TransactionsRepo struct {
 	pool *pgxpool.Pool
+}
+
+type txSource struct {
+	txs      []*model.Transaction
+	idx      int
+	bucketId int32
+	err      error
+}
+
+func (s *txSource) Next() bool {
+	if s.err != nil {
+		return false
+	}
+	s.idx++
+	return s.idx <= len(s.txs)
+}
+
+func (s *txSource) Values() ([]any, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	tx := s.txs[s.idx-1]
+	return []any{
+		tx.Id,
+		tx.AccountId,
+		tx.Amount,
+		tx.Type,
+		tx.CreatedAt,
+		s.bucketId,
+	}, nil
+}
+
+func (s *txSource) Err() error {
+	return s.err
 }
 
 func NewTransactionsRepo(pool *pgxpool.Pool) *TransactionsRepo {
@@ -108,34 +142,31 @@ func (r *TransactionsRepo) FlushBucket(ctx context.Context, bucketId int32) erro
 }
 
 func (r *TransactionsRepo) BatchProcess(ctx context.Context, txs []*model.Transaction, bucketId int32) error {
-	if bucketId != 0 && bucketId != 1 {
-		return fmt.Errorf("invalid bucketId: %d", bucketId)
-	}
-
-	partition := fmt.Sprintf("tx_buf_%d", bucketId)
-
-	rows, err := r.pool.CopyFrom(
-		ctx,
-		pgx.Identifier{partition}, // Directly target the partition
-		[]string{"id", "account_id", "amount", "transaction_type", "created_at", "bucket_id"},
-		pgx.CopyFromSlice(len(txs), func(i int) ([]any, error) {
-			return []any{
-				txs[i].Id,
-				txs[i].AccountId,
-				txs[i].Amount,
-				txs[i].Type,
-				txs[i].CreatedAt,
-				bucketId,
-			}, nil
-		}),
-	)
-	if err != nil {
-		return err
-	}
-
-	if int(rows) != len(txs) {
-		return fmt.Errorf("expected to insert %d rows, but inserted %d", len(txs), rows)
-	}
+	// if bucketId != 0 && bucketId != 1 {
+	// 	return fmt.Errorf("invalid bucketId: %d", bucketId)
+	// }
+	//
+	// partition := fmt.Sprintf("tx_buf_%d", bucketId)
+	//
+	// source := &txSource{
+	// 	txs:      txs,
+	// 	idx:      0,
+	// 	bucketId: bucketId,
+	// }
+	//
+	// rows, err := r.pool.CopyFrom(
+	// 	ctx,
+	// 	pgx.Identifier{partition}, // Directly target the partition
+	// 	[]string{"id", "account_id", "amount", "transaction_type", "created_at", "bucket_id"},
+	// 	source,
+	// )
+	// if err != nil {
+	// 	return err
+	// }
+	//
+	// if int(rows) != len(txs) {
+	// 	return fmt.Errorf("expected to insert %d rows, but inserted %d", len(txs), rows)
+	// }
 
 	return nil
 }

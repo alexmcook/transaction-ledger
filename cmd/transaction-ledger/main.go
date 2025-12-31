@@ -59,16 +59,19 @@ func main() {
 	})
 	flushWorker.Start(ctx)
 
-	txChan := make(chan *model.Transaction, 100000)
-	batchWorker := worker.NewBatchWorker(worker.BatchWorkerOpts{
-		Logger:         logger,
-		TxChan:         txChan,
-		BatchSize:      1000,
-		BatchInterval:  250 * time.Millisecond,
-		Batchable:      store.Transactions,
-		BucketProvider: flushWorker,
-	})
-	batchWorker.Start(ctx)
+	txChan := make(chan *model.Transaction, 1000000)
+
+	for i := range 10 {
+		batchWorker := worker.NewBatchWorker(i, worker.BatchWorkerOpts{
+			Logger:         logger,
+			TxChan:         txChan,
+			BatchSize:      1000,
+			BatchInterval:  250 * time.Millisecond,
+			Batchable:      store.Transactions,
+			BucketProvider: flushWorker,
+		})
+		batchWorker.Start(ctx)
+	}
 
 	svc := service.New(service.Deps{
 		Logger:         logger,
