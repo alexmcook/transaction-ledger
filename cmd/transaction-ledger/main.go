@@ -9,14 +9,17 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"os"
+	"time"
+
 	"github.com/alexmcook/transaction-ledger/internal/api"
 	"github.com/alexmcook/transaction-ledger/internal/db"
 	"github.com/alexmcook/transaction-ledger/internal/logger"
+	"github.com/alexmcook/transaction-ledger/internal/model"
 	"github.com/alexmcook/transaction-ledger/internal/service"
 	"github.com/alexmcook/transaction-ledger/internal/worker"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"net/http"
-	"os"
 )
 
 func main() {
@@ -54,16 +57,27 @@ func main() {
 		FlushInterval: 10 * 1000 * 1000 * 1000, // 10 seconds
 		Flushable:     store.Transactions,
 	})
+	flushWorker.Start(ctx)
+
+	txChan := make(chan *model.Transaction, 100000)
+	batchWorker := worker.NewBatchWorker(worker.BatchWorkerOpts{
+		Logger:         logger,
+		TxChan:         txChan,
+		BatchSize:      1000,
+		BatchInterval:  250 * time.Millisecond,
+		Batchable:      store.Transactions,
+		BucketProvider: flushWorker,
+	})
+	batchWorker.Start(ctx)
 
 	svc := service.New(service.Deps{
-		Logger:       logger,
-		Users:        store.Users,
-		Accounts:     store.Accounts,
-		Transactions: store.Transactions,
-		FlushWorker:  flushWorker,
+		Logger:         logger,
+		Users:          store.Users,
+		Accounts:       store.Accounts,
+		Transactions:   store.Transactions,
+		BucketProvider: flushWorker,
+		TxChan:         txChan,
 	})
-
-	flushWorker.Start(ctx)
 
 	server := api.NewServer(svc, logger)
 	err = server.Run()

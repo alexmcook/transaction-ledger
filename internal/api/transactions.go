@@ -99,20 +99,23 @@ func (s *Server) handleCreateTransaction() http.HandlerFunc {
 			return
 		}
 
-		transaction, err := s.svc.Transactions.CreateTransaction(r.Context(), p.AccountId, p.Type, p.Amount, s.svc.FlushWorker.GetActiveBucket())
-		if err != nil {
-			s.respondWithError(r.Context(), w, http.StatusInternalServerError, "Failed to create transaction", err)
+		tx := &model.Transaction{
+			Id:        uuid.Must(uuid.NewV7()),
+			AccountId: p.AccountId,
+			Type:      p.Type,
+			Amount:    p.Amount,
+			CreatedAt: time.Now().UnixMilli(),
+		}
+
+		select {
+		case s.svc.TxChan <- tx:
+			metrics.TransactionsSuccess.Inc()
+		default:
+			// Channel is full, respond with service unavailable
+			s.respondWithError(r.Context(), w, http.StatusServiceUnavailable, "Transaction service is busy", nil)
 			return
 		}
 
-		err = s.svc.Accounts.UpdateAccountBalance(r.Context(), p.AccountId, p.Amount)
-		if err != nil {
-			s.respondWithError(r.Context(), w, http.StatusInternalServerError, "Failed to update account balance", err)
-			return
-		}
-
-		metrics.TransactionsSuccess.Inc()
-
-		s.respondWithJSON(r.Context(), w, http.StatusCreated, toTransactionResponse(transaction))
+		s.respondWithJSON(r.Context(), w, http.StatusCreated, toTransactionResponse(tx))
 	}
 }

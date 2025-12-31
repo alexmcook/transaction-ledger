@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/alexmcook/transaction-ledger/internal/model"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"time"
 )
@@ -53,6 +54,10 @@ func (r *TransactionsRepo) CreateTransaction(ctx context.Context, accountId uuid
 }
 
 func (r *TransactionsRepo) FlushBucket(ctx context.Context, bucketId int32) error {
+	if bucketId != 0 && bucketId != 1 {
+		return fmt.Errorf("invalid bucketId: %d", bucketId)
+	}
+
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -100,4 +105,37 @@ func (r *TransactionsRepo) FlushBucket(ctx context.Context, bucketId int32) erro
 
 	// Commit the transaction
 	return tx.Commit(ctx)
+}
+
+func (r *TransactionsRepo) BatchProcess(ctx context.Context, txs []*model.Transaction, bucketId int32) error {
+	if bucketId != 0 && bucketId != 1 {
+		return fmt.Errorf("invalid bucketId: %d", bucketId)
+	}
+
+	partition := fmt.Sprintf("tx_buf_%d", bucketId)
+
+	rows, err := r.pool.CopyFrom(
+		ctx,
+		pgx.Identifier{partition}, // Directly target the partition
+		[]string{"id", "account_id", "amount", "transaction_type", "created_at", "bucket_id"},
+		pgx.CopyFromSlice(len(txs), func(i int) ([]any, error) {
+			return []any{
+				txs[i].Id,
+				txs[i].AccountId,
+				txs[i].Amount,
+				txs[i].Type,
+				txs[i].CreatedAt,
+				bucketId,
+			}, nil
+		}),
+	)
+	if err != nil {
+		return err
+	}
+
+	if int(rows) != len(txs) {
+		return fmt.Errorf("expected to insert %d rows, but inserted %d", len(txs), rows)
+	}
+
+	return nil
 }

@@ -27,9 +27,9 @@ func (m *MockTransactionStore) CreateTransaction(ctx context.Context, accountId 
 	return &model.Transaction{Id: uuid}, nil
 }
 
-type MockFlushWorker struct{}
+type MockBucketProvider struct{}
 
-func (fw *MockFlushWorker) GetActiveBucket() int32 {
+func (fw *MockBucketProvider) GetActiveBucket() int32 {
 	return 0
 }
 
@@ -91,9 +91,10 @@ func TestHandleCreateTransaction(t *testing.T) {
 
 			// Mock service
 			svc := &service.Service{
-				Transactions: &MockTransactionStore{},
-				Accounts:     &MockAccountStore{},
-				FlushWorker:  &MockFlushWorker{},
+				Transactions:   &MockTransactionStore{},
+				Accounts:       &MockAccountStore{},
+				BucketProvider: &MockBucketProvider{},
+				TxChan:         make(chan *model.Transaction, 100),
 			}
 
 			logger, err := logger.Init(false)

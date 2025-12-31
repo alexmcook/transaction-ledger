@@ -25,27 +25,30 @@ type TransactionStore interface {
 }
 
 type Service struct {
-	logger       *slog.Logger
-	Users        UserStore
-	Accounts     AccountStore
-	Transactions TransactionStore
-	FlushWorker  db.BucketProvider
+	logger         *slog.Logger
+	Users          UserStore
+	Accounts       AccountStore
+	Transactions   TransactionStore
+	BucketProvider db.BucketProvider
+	TxChan         chan *model.Transaction
 }
 
 type Deps struct {
-	Logger       *slog.Logger
-	Users        UserStore
-	Accounts     AccountStore
-	Transactions TransactionStore
-	FlushWorker  db.BucketProvider
+	Logger         *slog.Logger
+	Users          UserStore
+	Accounts       AccountStore
+	Transactions   TransactionStore
+	BucketProvider db.BucketProvider
+	TxChan         chan *model.Transaction
 }
 
 func New(d Deps) *Service {
 	return &Service{
-		logger:       d.Logger,
-		Users:        d.Users,
-		Accounts:     d.Accounts,
-		Transactions: d.Transactions,
-		FlushWorker:  d.FlushWorker,
+		logger:         d.Logger,
+		Users:          d.Users,
+		Accounts:       d.Accounts,
+		Transactions:   d.Transactions,
+		BucketProvider: d.BucketProvider,
+		TxChan:         d.TxChan,
 	}
 }

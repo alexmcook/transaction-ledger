@@ -43,7 +43,7 @@ func (w *FlushWorker) flushRoutine(ctx context.Context) {
 		select {
 		case <-ticker.C:
 			bucketId := w.GetActiveBucket()
-			w.logger.Info("FlushWorker: flushing write-behind buffer", slog.Int("bucket", int(bucketId)))
+			w.logger.Debug("FlushWorker: flushing write-behind buffer", slog.Int("bucket", int(bucketId)))
 
 			w.switchActiveBucket() // Switch partitions
 
@@ -58,10 +58,10 @@ func (w *FlushWorker) flushRoutine(ctx context.Context) {
 			if err != nil {
 				w.logger.Error("FlushWorker: error flushing write-behind buffer", slog.Int("bucket", int(bucketId)), slog.String("error", err.Error()))
 			} else {
-				w.logger.Info("FlushWorker: successfully flushed write-behind buffer", slog.Int("bucket", int(bucketId)))
+				w.logger.Debug("FlushWorker: successfully flushed write-behind buffer", slog.Int("bucket", int(bucketId)))
 			}
 		case <-ctx.Done():
-			w.logger.Info("FlushWorker: stopping flush worker")
+			w.logger.Debug("FlushWorker: stopping flush worker")
 			return
 		}
 	}
@@ -69,7 +69,7 @@ func (w *FlushWorker) flushRoutine(ctx context.Context) {
 
 func (w *FlushWorker) Start(ctx context.Context) {
 	w.workerOnce.Do(func() {
-		w.logger.Info("FlushWorker: starting flush worker", slog.Duration("flush_interval", w.flushInterval))
+		w.logger.Debug("FlushWorker: starting flush worker", slog.Duration("flush_interval", w.flushInterval))
 		go w.flushRoutine(ctx)
 	})
 }
