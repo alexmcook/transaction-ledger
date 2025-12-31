@@ -23,6 +23,20 @@ services:
       timeout: 5s
       retries: 5
 
+  migrate:
+    image: migrate/migrate:4
+    container_name: transaction-ledger-migrate
+    volumes:
+      - ./migrations:/migrations
+    env_file: .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    network_mode: host
+    command: ["-path", "/migrations", "-database", "${DATABASE_URL}", "up"]
+
   api:
     build:
       context: .
@@ -39,6 +53,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     network_mode: host
     deploy:
       resources:

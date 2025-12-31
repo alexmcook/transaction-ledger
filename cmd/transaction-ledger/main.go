@@ -48,17 +48,19 @@ func main() {
 	defer pool.Close()
 
 	store := db.NewStore(pool, logger)
-	svc := service.New(service.Deps{
-		Logger:       logger,
-		Users:        store.Users,
-		Accounts:     store.Accounts,
-		Transactions: store.Transactions,
-	})
 
 	flushWorker := worker.NewFlushWorker(worker.FlushWorkerOpts{
 		Logger:        logger,
 		FlushInterval: 10 * 1000 * 1000 * 1000, // 10 seconds
 		Flusher:       store.Transactions,
+	})
+
+	svc := service.New(service.Deps{
+		Logger:       logger,
+		Users:        store.Users,
+		Accounts:     store.Accounts,
+		Transactions: store.Transactions,
+		FlushWorker:  flushWorker,
 	})
 
 	flushWorker.Start(ctx)
