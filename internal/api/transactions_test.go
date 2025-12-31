@@ -19,12 +19,18 @@ func (m *MockTransactionStore) GetTransaction(ctx context.Context, id uuid.UUID)
 	return &model.Transaction{Id: id}, nil
 }
 
-func (m *MockTransactionStore) CreateTransaction(ctx context.Context, accountId uuid.UUID, transactionType int, amount int64) (*model.Transaction, error) {
+func (m *MockTransactionStore) CreateTransaction(ctx context.Context, accountId uuid.UUID, transactionType int, amount int64, bucketId int32) (*model.Transaction, error) {
 	uuid, err := uuid.NewV7()
 	if err != nil {
 		return nil, err
 	}
 	return &model.Transaction{Id: uuid}, nil
+}
+
+type MockFlushWorker struct{}
+
+func (fw *MockFlushWorker) GetActiveBucket() int32 {
+	return 0
 }
 
 func TestHandleGetTransaction(t *testing.T) {
@@ -87,6 +93,7 @@ func TestHandleCreateTransaction(t *testing.T) {
 			svc := &service.Service{
 				Transactions: &MockTransactionStore{},
 				Accounts:     &MockAccountStore{},
+				FlushWorker:  &MockFlushWorker{},
 			}
 
 			logger, err := logger.Init(false)

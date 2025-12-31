@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"github.com/alexmcook/transaction-ledger/internal/db"
 	"github.com/alexmcook/transaction-ledger/internal/model"
 	"github.com/google/uuid"
 	"log/slog"
@@ -20,7 +21,7 @@ type AccountStore interface {
 
 type TransactionStore interface {
 	GetTransaction(ctx context.Context, id uuid.UUID) (*model.Transaction, error)
-	CreateTransaction(ctx context.Context, accountId uuid.UUID, transactionType int, amount int64) (*model.Transaction, error)
+	CreateTransaction(ctx context.Context, accountId uuid.UUID, transactionType int, amount int64, bucketId int32) (*model.Transaction, error)
 }
 
 type Service struct {
@@ -28,6 +29,7 @@ type Service struct {
 	Users        UserStore
 	Accounts     AccountStore
 	Transactions TransactionStore
+	FlushWorker  db.BucketProvider
 }
 
 type Deps struct {
@@ -35,6 +37,7 @@ type Deps struct {
 	Users        UserStore
 	Accounts     AccountStore
 	Transactions TransactionStore
+	FlushWorker  db.BucketProvider
 }
 
 func New(d Deps) *Service {
@@ -43,5 +46,6 @@ func New(d Deps) *Service {
 		Users:        d.Users,
 		Accounts:     d.Accounts,
 		Transactions: d.Transactions,
+		FlushWorker:  d.FlushWorker,
 	}
 }

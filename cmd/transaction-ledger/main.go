@@ -13,6 +13,7 @@ import (
 	"github.com/alexmcook/transaction-ledger/internal/db"
 	"github.com/alexmcook/transaction-ledger/internal/logger"
 	"github.com/alexmcook/transaction-ledger/internal/service"
+	"github.com/alexmcook/transaction-ledger/internal/worker"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
 	"os"
@@ -53,6 +54,14 @@ func main() {
 		Accounts:     store.Accounts,
 		Transactions: store.Transactions,
 	})
+
+	flushWorker := worker.NewFlushWorker(worker.FlushWorkerOpts{
+		Logger:        logger,
+		FlushInterval: 10 * 1000 * 1000 * 1000, // 10 seconds
+		Flusher:       store.Transactions,
+	})
+
+	flushWorker.Start(ctx)
 
 	server := api.NewServer(svc, logger)
 	err = server.Run()

@@ -99,7 +99,7 @@ func (s *Server) handleCreateTransaction() http.HandlerFunc {
 			return
 		}
 
-		transaction, err := s.svc.Transactions.CreateTransaction(r.Context(), p.AccountId, p.Type, p.Amount)
+		transaction, err := s.svc.Transactions.CreateTransaction(r.Context(), p.AccountId, p.Type, p.Amount, s.svc.FlushWorker.GetActiveBucket())
 		if err != nil {
 			s.respondWithError(r.Context(), w, http.StatusInternalServerError, "Failed to create transaction", err)
 			return

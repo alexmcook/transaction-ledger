@@ -63,3 +63,20 @@ func (r *AccountsRepo) UpdateAccountBalance(ctx context.Context, accountId uuid.
 	_, err := r.pool.Exec(ctx, "UPDATE accounts SET balance = balance + $1 WHERE id = $2", amount, accountId)
 	return err
 }
+
+func (r *AccountsRepo) UpdateBalances(ctx context.Context, balances map[uuid.UUID]int64) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	for accountId, amount := range balances {
+		_, err := tx.Exec(ctx, "UPDATE accounts SET balance = balance + $1 WHERE id = $2", amount, accountId)
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit(ctx)
+}
