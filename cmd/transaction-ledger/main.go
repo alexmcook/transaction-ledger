@@ -52,7 +52,7 @@ func main() {
 	flushWorker := worker.NewFlushWorker(worker.FlushWorkerOpts{
 		Logger:        logger,
 		FlushInterval: 10 * 1000 * 1000 * 1000, // 10 seconds
-		Flusher:       store.Transactions,
+		Flushable:     store.Transactions,
 	})
 
 	svc := service.New(service.Deps{

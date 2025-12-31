@@ -8,14 +8,14 @@ import (
 	"time"
 )
 
-type Flusher interface {
+type Flushable interface {
 	FlushBucket(ctx context.Context, bucketId int32) error
 }
 
 type FlushWorker struct {
 	flushInterval time.Duration
 	logger        *slog.Logger
-	flusher       Flusher
+	flushable     Flushable
 	activeBucket  int32
 	workerOnce    sync.Once
 }
@@ -23,14 +23,14 @@ type FlushWorker struct {
 type FlushWorkerOpts struct {
 	FlushInterval time.Duration
 	Logger        *slog.Logger
-	Flusher       Flusher
+	Flushable     Flushable
 }
 
 func NewFlushWorker(opts FlushWorkerOpts) *FlushWorker {
 	return &FlushWorker{
 		flushInterval: opts.FlushInterval,
 		logger:        opts.Logger,
-		flusher:       opts.Flusher,
+		flushable:     opts.Flushable,
 		activeBucket:  0,
 	}
 }
@@ -54,7 +54,7 @@ func (w *FlushWorker) flushRoutine(ctx context.Context) {
 				return
 			}
 
-			err := w.flusher.FlushBucket(ctx, bucketId) // Flush the inactive bucket
+			err := w.flushable.FlushBucket(ctx, bucketId) // Flush the inactive bucket
 			if err != nil {
 				w.logger.Error("FlushWorker: error flushing write-behind buffer", slog.Int("bucket", int(bucketId)), slog.String("error", err.Error()))
 			} else {
