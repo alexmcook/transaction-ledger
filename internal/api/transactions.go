@@ -1,11 +1,10 @@
 package api
 
 import (
-	"encoding/json"
 	"github.com/alexmcook/transaction-ledger/internal/metrics"
 	"github.com/alexmcook/transaction-ledger/internal/model"
 	"github.com/google/uuid"
-	"net/http"
+	"github.com/gofiber/fiber/v3"
 	"time"
 )
 
@@ -59,22 +58,27 @@ func toTransactionResponse(t *model.Transaction) *TransactionResponse {
 // @Failure		400				{object}	ErrorResponse		"Invalid transaction ID"
 // @Failure		404				{object}	ErrorResponse		"Transaction not found"
 // @Router			/transactions/{transactionId} [get]
-func (s *Server) handleGetTransaction() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		transactionId, err := uuid.Parse(r.PathValue("transactionId"))
-		if err != nil {
-			s.respondWithError(r.Context(), w, http.StatusBadRequest, "Invalid transaction ID format", err)
-			return
-		}
-
-		transaction, err := s.svc.Transactions.GetTransaction(r.Context(), transactionId)
-		if err != nil {
-			s.respondWithError(r.Context(), w, http.StatusNotFound, "Transaction not found", err)
-			return
-		}
-
-		s.respondWithJSON(r.Context(), w, http.StatusOK, toTransactionResponse(transaction))
+func (s *Server) handleGetTransaction(c fiber.Ctx) error {
+	var params struct {
+		TransactionId string `params:"transactionId"`
 	}
+
+	err := c.Bind().URI(&params)
+	if err != nil {
+		return s.respondWithError(c, fiber.StatusBadRequest, "Invalid request parameters", err)
+	}
+
+	transactionId, err := uuid.Parse(params.TransactionId)
+	if err != nil {
+		return s.respondWithError(c, fiber.StatusBadRequest, "Invalid transaction ID format", err)
+	}
+
+	transaction, err := s.svc.Transactions.GetTransaction(c.Context(), transactionId)
+	if err != nil {
+		return s.respondWithError(c, fiber.StatusNotFound, "Transaction not found", err)
+	}
+
+	return c.JSON(toTransactionResponse(transaction))
 }
 
 // @Summary		Create a new transaction
@@ -85,18 +89,12 @@ func (s *Server) handleGetTransaction() http.HandlerFunc {
 // @Failure		400			{object}	ErrorResponse		"Invalid request payload"
 // @Failure		500			{object}	ErrorResponse		"Failed to create transaction"
 // @Router			/transactions [post]
-func (s *Server) handleCreateTransaction() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleCreateTransaction(c fiber.Ctx) error {
 		var p TransactionPayload
 
-		r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // limit 1MB
-		dec := json.NewDecoder(r.Body)
-		dec.DisallowUnknownFields()
-
-		err := dec.Decode(&p)
+		err := c.Bind().Body(&p)
 		if err != nil {
-			s.respondWithError(r.Context(), w, http.StatusBadRequest, "Invalid JSON payload", err)
-			return
+			return s.respondWithError(c, fiber.StatusBadRequest, "Invalid JSON payload", err)
 		}
 
 		tx := &model.Transaction{
@@ -112,10 +110,8 @@ func (s *Server) handleCreateTransaction() http.HandlerFunc {
 			metrics.TransactionsSuccess.Inc()
 		default:
 			// Channel is full, respond with service unavailable
-			s.respondWithError(r.Context(), w, http.StatusServiceUnavailable, "Transaction service is busy", nil)
-			return
+			return s.respondWithError(c, fiber.StatusServiceUnavailable, "Transaction service is busy", nil)
 		}
 
-		s.respondWithJSON(r.Context(), w, http.StatusCreated, toTransactionResponse(tx))
-	}
+		return c.Status(fiber.StatusCreated).JSON(toTransactionResponse(tx))
 }

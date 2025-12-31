@@ -2,11 +2,11 @@ package api
 
 import (
 	"context"
-	"github.com/alexmcook/transaction-ledger/internal/logger"
 	"github.com/alexmcook/transaction-ledger/internal/model"
 	"github.com/alexmcook/transaction-ledger/internal/service"
 	"github.com/google/uuid"
-	"net/http"
+	"github.com/gofiber/fiber/v3"
+	"log/slog"
 	"net/http/httptest"
 	"testing"
 )
@@ -31,31 +31,30 @@ func TestHandleGetUser(t *testing.T) {
 		t.Fatalf("failed to generate uuid: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/users/"+uuid.String(), nil)
-	req.SetPathValue("userId", uuid.String())
-	w := httptest.NewRecorder()
-
 	// Mock service
 	svc := &service.Service{
 		Users: &MockUserStore{},
 	}
 
-	logger, err := logger.Init(false)
+	s := NewServer(svc, slog.Default())
+
+	target := "/users/" + uuid.String()
+	req := httptest.NewRequest(fiber.MethodGet, target, nil)
+
+	resp, err := s.app.Test(req)
 	if err != nil {
-		t.Fatalf("Failed to initialize logger: %v", err)
+		t.Fatalf("failed to perform request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusOK {
+		t.Errorf("expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
 	}
 
-	s := &Server{
-		logger: logger,
-		svc:    svc,
-	}
-
-	handler := s.handleGetUser()
-	handler(w, req)
-
-	resp := w.Result()
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("expected status 200 OK, got %d", resp.StatusCode)
+	contentType := resp.Header.Get("Content-Type")
+	expectedContentType := "application/json; charset=utf-8"
+	if contentType != expectedContentType {
+		t.Errorf("expected Content-Type %q, got %q", expectedContentType, contentType)
 	}
 }
 
@@ -65,34 +64,38 @@ func TestHandleCreateUser(t *testing.T) {
 		url          string
 		expectedCode int
 	}{
-		{"Valid", "/users", http.StatusCreated},
+		{
+			name:         "Valid",
+			expectedCode: fiber.StatusCreated,
+		},
 	}
+
+	// Mock service
+	svc := &service.Service{
+		Users: &MockUserStore{},
+	}
+
+	s := NewServer(svc, slog.Default())
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, tt.url, nil)
-			w := httptest.NewRecorder()
+			req := httptest.NewRequest(fiber.MethodPost, "/users", nil)
+			req.Header.Set("Content-Type", "application/json")
 
-			// Mock service
-			svc := &service.Service{
-				Users: &MockUserStore{},
-			}
-
-			logger, err := logger.Init(false)
+			resp, err := s.app.Test(req)
 			if err != nil {
-				t.Fatalf("Failed to initialize logger: %v", err)
+				t.Fatalf("failed to perform request: %v", err)
 			}
+			defer resp.Body.Close()
 
-			s := &Server{
-				logger: logger,
-				svc:    svc,
-			}
-
-			handler := s.handleCreateUser()
-			handler(w, req)
-
-			resp := w.Result()
 			if resp.StatusCode != tt.expectedCode {
 				t.Errorf("expected status %d, got %d", tt.expectedCode, resp.StatusCode)
+			}
+
+			contentType := resp.Header.Get("Content-Type")
+			expectedContentType := "application/json; charset=utf-8"
+			if contentType != expectedContentType {
+				t.Errorf("expected Content-Type %q, got %q", expectedContentType, contentType)
 			}
 		})
 	}

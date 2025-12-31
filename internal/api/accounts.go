@@ -1,10 +1,9 @@
 package api
 
 import (
-	"encoding/json"
 	"github.com/alexmcook/transaction-ledger/internal/model"
 	"github.com/google/uuid"
-	"net/http"
+	"github.com/gofiber/fiber/v3"
 	"time"
 )
 
@@ -51,22 +50,27 @@ func toAccountResponse(a *model.Account) *AccountResponse {
 // @Failure		400			{object}	ErrorResponse	"Invalid account ID"
 // @Failure		404			{object}	ErrorResponse	"Account not found"
 // @Router			/accounts/{accountId} [get]
-func (s *Server) handleGetAccount() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		accountId, err := uuid.Parse(r.PathValue("accountId"))
-		if err != nil {
-			s.respondWithError(r.Context(), w, http.StatusBadRequest, "Invalid account ID format", err)
-			return
-		}
-
-		account, err := s.svc.Accounts.GetAccount(r.Context(), accountId)
-		if err != nil {
-			s.respondWithError(r.Context(), w, http.StatusNotFound, "Account not found", err)
-			return
-		}
-
-		s.respondWithJSON(r.Context(), w, http.StatusOK, toAccountResponse(account))
+func (s *Server) handleGetAccount(c fiber.Ctx) error {
+	var params struct {
+		AccountId string `params:"accountId"`
 	}
+
+	err := c.Bind().URI(&params)
+	if err != nil {
+		return s.respondWithError(c, fiber.StatusBadRequest, "Invalid request parameters", err)
+	}
+
+	accountId, err := uuid.Parse(params.AccountId)
+	if err != nil {
+		return s.respondWithError(c, fiber.StatusBadRequest, "Invalid account ID format", err)
+	}
+
+	account, err := s.svc.Accounts.GetAccount(c.Context(), accountId)
+	if err != nil {
+		return s.respondWithError(c, fiber.StatusNotFound, "Account not found", err)
+	}
+
+	return c.JSON(toAccountResponse(account))
 }
 
 // @Summary		Create a new account
@@ -77,26 +81,18 @@ func (s *Server) handleGetAccount() http.HandlerFunc {
 // @Failure		400		{object}	ErrorResponse	"Invalid request payload"
 // @Failure		500		{object}	ErrorResponse	"Failed to create account"
 // @Router			/accounts [post]
-func (s *Server) handleCreateAccount() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		var p AccountPayload
+func (s *Server) handleCreateAccount(c fiber.Ctx) error {
+	var p AccountPayload
 
-		r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // limit 1MB
-		dec := json.NewDecoder(r.Body)
-		dec.DisallowUnknownFields()
-
-		err := dec.Decode(&p)
-		if err != nil {
-			s.respondWithError(r.Context(), w, http.StatusBadRequest, "Invalid JSON payload", err)
-			return
-		}
-
-		account, err := s.svc.Accounts.CreateAccount(r.Context(), p.UserId, p.Balance)
-		if err != nil {
-			s.respondWithError(r.Context(), w, http.StatusInternalServerError, "Failed to create account", err)
-			return
-		}
-
-		s.respondWithJSON(r.Context(), w, http.StatusCreated, toAccountResponse(account))
+	err := c.Bind().Body(&p)
+	if err != nil {
+		return s.respondWithError(c, fiber.StatusBadRequest, "Invalid JSON payload", err)
 	}
+
+	account, err := s.svc.Accounts.CreateAccount(c.Context(), p.UserId, p.Balance)
+	if err != nil {
+		return s.respondWithError(c, fiber.StatusInternalServerError, "Failed to create account", err)
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(toAccountResponse(account))
 }

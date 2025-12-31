@@ -1,27 +1,30 @@
 package api
 
 import (
-	"net/http"
+	"github.com/gofiber/fiber/v3"
+	"log/slog"
 	"net/http/httptest"
 	"testing"
+	"io"
 )
 
 func TestHandleHealth(t *testing.T) {
-	req := httptest.NewRequest("GET", "/health", nil)
-	w := httptest.NewRecorder()
+	s := NewServer(nil, slog.Default())
 
-	s := &Server{}
+	req := httptest.NewRequest(fiber.MethodGet, "/health", nil)
 
-	s.handleHealth(w, req)
+	resp, err := s.app.Test(req)
+	if err != nil {
+		t.Fatalf("failed to perform request: %v", err)
+	}
 
-	resp := w.Result()
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("expected status 200 OK, got %d", resp.StatusCode)
+	if resp.StatusCode != fiber.StatusOK {
+		t.Errorf("expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
 	}
 
 	expectedBody := "OK"
-	body := w.Body.String()
-	if body != expectedBody {
+	body, _ := io.ReadAll(resp.Body)
+	if string(body) != expectedBody {
 		t.Errorf("expected body %q, got %q", expectedBody, body)
 	}
 }

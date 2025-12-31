@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/alexmcook/transaction-ledger/internal/logger"
 	"github.com/alexmcook/transaction-ledger/internal/model"
 	"github.com/alexmcook/transaction-ledger/internal/service"
 	"github.com/google/uuid"
-	"net/http"
+	"github.com/gofiber/fiber/v3"
+	"log/slog"
 	"net/http/httptest"
 	"testing"
 )
@@ -39,31 +39,30 @@ func TestHandleGetTransaction(t *testing.T) {
 		t.Fatalf("failed to generate uuid: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/transactions/"+uuid.String(), nil)
-	req.SetPathValue("transactionId", uuid.String())
-	w := httptest.NewRecorder()
-
 	// Mock service
 	svc := &service.Service{
 		Transactions: &MockTransactionStore{},
 	}
 
-	logger, err := logger.Init(false)
+	s := NewServer(svc, slog.Default())
+
+	target := "/transactions/" + uuid.String()
+	req := httptest.NewRequest(fiber.MethodGet, target, nil)
+
+	resp, err := s.app.Test(req)
 	if err != nil {
-		t.Fatalf("Failed to initialize logger: %v", err)
+		t.Fatalf("failed to perform request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != fiber.StatusOK {
+		t.Errorf("expected status %d, got %d", fiber.StatusOK, resp.StatusCode)
 	}
 
-	s := &Server{
-		logger: logger,
-		svc:    svc,
-	}
-
-	handler := s.handleGetTransaction()
-	handler(w, req)
-
-	resp := w.Result()
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("expected status 200 OK, got %d", resp.StatusCode)
+	contentType := resp.Header.Get("Content-Type")
+	expectedContentType := "application/json; charset=utf-8"
+	if contentType != expectedContentType {
+		t.Errorf("expected Content-Type %q, got %q", expectedContentType, contentType)
 	}
 }
 
@@ -75,44 +74,50 @@ func TestHandleCreateTransaction(t *testing.T) {
 
 	var tests = []struct {
 		name         string
-		payload      []byte
+		payload      string
 		expectedCode int
 	}{
-		{"ValidTransaction", fmt.Appendf(nil, `{"accountId":"%s","type":1,"amount":1000}`, uuid.String()), http.StatusCreated},
-		{"InvalidAccountId", []byte(`{"accountId":"invalid-uuid","type":1,"amount":1000}`), http.StatusBadRequest},
+		{
+			name: "ValidTransaction",
+			payload: fmt.Sprintf(`{"accountId":"%s","type":1,"amount":1000}`, uuid.String()),
+			expectedCode: fiber.StatusCreated,
+		},
+		{
+			name: "InvalidAccountId",
+			payload: `{"accountId":"invalid-uuid","type":1,"amount":1000}`,
+			expectedCode: fiber.StatusBadRequest,
+		},
 	}
+
+	// Mock service
+	svc := &service.Service{
+		Transactions:   &MockTransactionStore{},
+		Accounts:       &MockAccountStore{},
+		BucketProvider: &MockBucketProvider{},
+		TxChan:         make(chan *model.Transaction, 100),
+	}
+
+	s := NewServer(svc, slog.Default())
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, "/transactions", bytes.NewReader(tt.payload))
+			req := httptest.NewRequest(fiber.MethodPost, "/transactions", bytes.NewReader([]byte(tt.payload)))
 			req.Header.Set("Content-Type", "application/json")
 
-			w := httptest.NewRecorder()
-
-			// Mock service
-			svc := &service.Service{
-				Transactions:   &MockTransactionStore{},
-				Accounts:       &MockAccountStore{},
-				BucketProvider: &MockBucketProvider{},
-				TxChan:         make(chan *model.Transaction, 100),
-			}
-
-			logger, err := logger.Init(false)
+			resp, err := s.app.Test(req)
 			if err != nil {
-				t.Fatalf("Failed to initialize logger: %v", err)
+				t.Fatalf("failed to perform request: %v", err)
 			}
+			defer resp.Body.Close()
 
-			s := &Server{
-				logger: logger,
-				svc:    svc,
-			}
-
-			handler := s.handleCreateTransaction()
-			handler(w, req)
-
-			resp := w.Result()
 			if resp.StatusCode != tt.expectedCode {
 				t.Errorf("expected status %d, got %d", tt.expectedCode, resp.StatusCode)
+			}
+
+			contentType := resp.Header.Get("Content-Type")
+			expectedType := "application/json; charset=utf-8"
+			if contentType != expectedType {
+				t.Errorf("expected Content-Type %q, got %q", expectedType, contentType)
 			}
 		})
 	}

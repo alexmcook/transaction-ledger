@@ -3,7 +3,7 @@ package api
 import (
 	"github.com/alexmcook/transaction-ledger/internal/model"
 	"github.com/google/uuid"
-	"net/http"
+	"github.com/gofiber/fiber/v3"
 	"time"
 )
 
@@ -32,22 +32,27 @@ func toUserResponse(u *model.User) *UserResponse {
 // @Failure		400	{object}	ErrorResponse	"Invalid user ID"
 // @Failure		404	{object}	ErrorResponse	"User not found"
 // @Router			/users/{id} [get]
-func (s *Server) handleGetUser() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		userId, err := uuid.Parse(r.PathValue("userId"))
-		if err != nil {
-			s.respondWithError(r.Context(), w, http.StatusBadRequest, "Invalid user ID format", err)
-			return
-		}
-
-		user, err := s.svc.Users.GetUser(r.Context(), userId)
-		if err != nil {
-			s.respondWithError(r.Context(), w, http.StatusNotFound, "User not found", err)
-			return
-		}
-
-		s.respondWithJSON(r.Context(), w, http.StatusOK, toUserResponse(user))
+func (s *Server) handleGetUser(c fiber.Ctx) error {
+	var params struct {
+		UserId string `params:"userId"`
 	}
+
+	err := c.Bind().URI(&params)
+	if err != nil {
+		return s.respondWithError(c, fiber.StatusBadRequest, "Invalid request parameters", err)
+	}
+
+	userId, err := uuid.Parse(params.UserId)
+	if err != nil {
+		return s.respondWithError(c, fiber.StatusBadRequest, "Invalid user ID", err)
+	}
+
+	user, err := s.svc.Users.GetUser(c.Context(), userId)
+	if err != nil {
+		return s.respondWithError(c, fiber.StatusNotFound, "User not found", err)
+	}
+
+	return c.JSON(toUserResponse(user))
 }
 
 // @Summary		Create a new user
@@ -56,14 +61,11 @@ func (s *Server) handleGetUser() http.HandlerFunc {
 // @Success		201	{object}	UserResponse	"User object"
 // @Failure		500	{object}	ErrorResponse	"Failed to create user"
 // @Router			/users [post]
-func (s *Server) handleCreateUser() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		user, err := s.svc.Users.CreateUser(r.Context())
-		if err != nil {
-			s.respondWithError(r.Context(), w, http.StatusInternalServerError, "Failed to create user", err)
-			return
-		}
-
-		s.respondWithJSON(r.Context(), w, http.StatusCreated, toUserResponse(user))
+func (s *Server) handleCreateUser(c fiber.Ctx) error {
+	user, err := s.svc.Users.CreateUser(c.Context())
+	if err != nil {
+		return s.respondWithError(c, fiber.StatusInternalServerError, "Failed to create user", err)
 	}
+
+	return c.Status(fiber.StatusCreated).JSON(toUserResponse(user))
 }

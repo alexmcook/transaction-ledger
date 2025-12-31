@@ -1,26 +1,27 @@
 package api
 
 import (
-	"context"
-	"encoding/json"
 	"github.com/alexmcook/transaction-ledger/internal/service"
+	"github.com/gofiber/fiber/v3"
 	"log/slog"
-	"net/http"
 )
 
 type Server struct {
-	router *http.ServeMux
+	app *fiber.App
 	logger *slog.Logger
 	svc    *service.Service
 }
 
 func NewServer(svc *service.Service, logger *slog.Logger) *Server {
+	app := fiber.New()
+
 	s := &Server{
+		app: app,
 		logger: logger,
 		svc:    svc,
 	}
-	s.router = http.NewServeMux()
-	s.registerRoutes(s.router)
+
+	s.registerRoutes()
 	return s
 }
 
@@ -29,14 +30,13 @@ func (s *Server) Run(addr ...string) error {
 	if len(addr) > 0 {
 		serverAddr = addr[0]
 	}
-	s.logger.Info("Starting server", slog.String("addr", serverAddr))
-	return http.ListenAndServe(serverAddr, s.router)
-}
 
-func (s *Server) json(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		next.ServeHTTP(w, r)
+	if !fiber.IsChild() {
+		s.logger.Info("Starting server", slog.String("addr", serverAddr))
+	}
+
+	return s.app.Listen(serverAddr, fiber.ListenConfig{
+		EnablePrefork: true,
 	})
 }
 
@@ -44,41 +44,31 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
-func (s *Server) respondWithError(ctx context.Context, w http.ResponseWriter, code int, message string, err error) {
+func (s *Server) respondWithError(c fiber.Ctx, code int, message string, err error) error {
 	if code >= 500 {
-		s.logger.ErrorContext(ctx, "Server error", slog.Int("code", code), slog.String("message", message), slog.String("error", err.Error()))
-	} else if code >= 400 {
-		s.logger.WarnContext(ctx, "Client error", slog.Int("code", code), slog.String("message", message), slog.String("error", err.Error()))
+		s.logger.ErrorContext(c.Context(), "Server error", slog.Int("code", code), slog.String("message", message), slog.String("error", err.Error()))
+	} else {
+		s.logger.WarnContext(c.Context(), "Client error", slog.Int("code", code), slog.String("message", message), slog.String("error", err.Error()))
 	}
-	w.WriteHeader(code)
-	errResp := ErrorResponse{Error: message}
-	err = json.NewEncoder(w).Encode(errResp)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "Failed to encode error response", slog.String("error", err.Error()))
-	}
+	return c.Status(code).JSON(ErrorResponse{Error: message})
 }
 
-func (s *Server) respondWithJSON(ctx context.Context, w http.ResponseWriter, code int, payload any) {
-	w.WriteHeader(code)
-	if payload == nil {
-		s.logger.DebugContext(ctx, "Response", slog.Int("code", code))
-		return
-	}
-	s.logger.DebugContext(ctx, "Response", slog.Int("code", code), slog.Any("payload", payload))
-	err := json.NewEncoder(w).Encode(payload)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "Failed to encode JSON response", slog.String("error", err.Error()))
-	}
+func (s *Server) json(c fiber.Ctx) error {
+	c.Set("Content-Type", "application/json; charset=utf-8")
+	return c.Next()
 }
 
-func (s *Server) registerRoutes(mux *http.ServeMux) {
-	mux.Handle("GET /health", http.HandlerFunc(s.handleHealth))
-	mux.Handle("GET /users/{userId}", s.json(s.handleGetUser()))
-	mux.Handle("GET /accounts/{accountId}", s.json(s.handleGetAccount()))
-	mux.Handle("GET /transactions/{transactionId}", s.json(s.handleGetTransaction()))
-	mux.Handle("POST /users", s.json(s.handleCreateUser()))
-	mux.Handle("POST /accounts", s.json(s.handleCreateAccount()))
-	mux.Handle("POST /transactions", s.json(s.handleCreateTransaction()))
+func (s *Server) registerRoutes() {
+	s.app.Get("/health", s.handleHealth)
+
+	api := s.app.Group("/")
+	api.Use(s.json)
+	api.Get("/users/:userId", s.handleGetUser)
+	api.Get("/accounts/:accountId", s.handleGetAccount)
+	api.Get("/transactions/:transactionId", s.handleGetTransaction)
+	api.Post("/users", s.handleCreateUser)
+	api.Post("/accounts", s.handleCreateAccount)
+	api.Post("/transactions", s.handleCreateTransaction)
 }
 
 // @Summary		API Health check
@@ -86,8 +76,6 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 // @Produce		plain
 // @Success		200	{string}	string	"OK"
 // @Router			/health [get]
-func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Write([]byte("OK"))
+func (s *Server) handleHealth(c fiber.Ctx) error {
+	return c.SendString("OK")
 }
