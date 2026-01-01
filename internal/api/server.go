@@ -2,17 +2,20 @@ package api
 
 import (
 	"github.com/gofiber/fiber/v3"
+	"log/slog"
 )
 
 type Server struct {
+	log   *slog.Logger
 	app   *fiber.App
 	store StoreRegistry
 }
 
-func NewServer(store StoreRegistry) *Server {
+func NewServer(log *slog.Logger, store StoreRegistry) *Server {
 	app := fiber.New()
 
 	s := &Server{
+		log:   log,
 		app:   app,
 		store: store,
 	}

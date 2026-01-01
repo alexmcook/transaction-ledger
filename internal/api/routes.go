@@ -3,6 +3,7 @@ package api
 import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
+	"log/slog"
 	"time"
 )
 
@@ -14,6 +15,7 @@ func (s *Server) handleGetUser(c fiber.Ctx) error {
 	id := c.Params("id")
 	uid, err := uuid.Parse(id)
 	if err != nil {
+		s.log.ErrorContext(c.Context(), "Invalid UUID format", slog.String("id", id))
 		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{
 			Message: "Invalid UUID format",
 		})
@@ -21,6 +23,7 @@ func (s *Server) handleGetUser(c fiber.Ctx) error {
 
 	user, err := s.store.Users().GetUser(c.Context(), uid)
 	if err != nil {
+		s.log.ErrorContext(c.Context(), "Failed to retrieve user", slog.String("id", id), slog.Any("error", err))
 		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
 			Message: "Failed to retrieve user",
 		})
@@ -41,6 +44,7 @@ func (s *Server) handleGetUser(c fiber.Ctx) error {
 func (s *Server) handleCreateUser(c fiber.Ctx) error {
 	id, err := uuid.NewV7()
 	if err != nil {
+		s.log.ErrorContext(c.Context(), "Failed to generate UUID", slog.Any("error", err))
 		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
 			Message: "Failed to generate UUID",
 		})
@@ -52,6 +56,7 @@ func (s *Server) handleCreateUser(c fiber.Ctx) error {
 		CreatedAt: now,
 	})
 	if err != nil {
+		s.log.ErrorContext(c.Context(), "Failed to create user", slog.String("id", id.String()), slog.Any("error", err))
 		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
 			Message: "Failed to create user",
 		})
@@ -67,6 +72,7 @@ func (s *Server) handleGetAccount(c fiber.Ctx) error {
 	id := c.Params("id")
 	uid, err := uuid.Parse(id)
 	if err != nil {
+		s.log.ErrorContext(c.Context(), "Invalid UUID format", slog.String("id", id))
 		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{
 			Message: "Invalid UUID format",
 		})
@@ -74,6 +80,7 @@ func (s *Server) handleGetAccount(c fiber.Ctx) error {
 
 	account, err := s.store.Accounts().GetAccount(c.Context(), uid)
 	if err != nil {
+		s.log.ErrorContext(c.Context(), "Failed to retrieve account", slog.String("id", id), slog.Any("error", err))
 		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
 			Message: "Failed to retrieve account",
 		})
@@ -96,6 +103,7 @@ func (s *Server) handleGetAccount(c fiber.Ctx) error {
 func (s *Server) handleCreateAccount(c fiber.Ctx) error {
 	id, err := uuid.NewV7()
 	if err != nil {
+		s.log.ErrorContext(c.Context(), "Failed to generate UUID", slog.Any("error", err))
 		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
 			Message: "Failed to generate UUID",
 		})
@@ -116,6 +124,7 @@ func (s *Server) handleCreateAccount(c fiber.Ctx) error {
 		CreatedAt: now,
 	})
 	if err != nil {
+		s.log.ErrorContext(c.Context(), "Failed to create account", slog.String("id", id.String()), slog.Any("error", err))
 		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
 			Message: "Failed to create account",
 		})
