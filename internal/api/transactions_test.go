@@ -66,6 +66,14 @@ func TestHandleGetTransaction(t *testing.T) {
 	}
 }
 
+func makeMockChans(n int) []chan model.TransactionPayload {
+	chans := make([]chan model.TransactionPayload, n)
+	for i := range n {
+		chans[i] = make(chan model.TransactionPayload, 10)
+	}
+	return chans
+}
+
 func TestHandleCreateTransaction(t *testing.T) {
 	uuid, err := uuid.NewV7()
 	if err != nil {
@@ -94,7 +102,7 @@ func TestHandleCreateTransaction(t *testing.T) {
 		Transactions:   &MockTransactionStore{},
 		Accounts:       &MockAccountStore{},
 		BucketProvider: &MockBucketProvider{},
-		TxChan:         make(chan *model.Transaction, 100),
+		TxChans:        makeMockChans(4),
 	}
 
 	s := NewServer(svc, slog.Default())

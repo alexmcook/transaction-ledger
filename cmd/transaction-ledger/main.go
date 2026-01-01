@@ -52,12 +52,13 @@ func setupServer(ctx context.Context, maxConns int, logger *slog.Logger) *servic
 	})
 	flushWorker.Start(ctx)
 
-	txChan := make(chan *model.Transaction, 100000)
+	txChans := make([]chan model.TransactionPayload, 10)
 
 	for i := range 10 {
+		txChans[i] = make(chan model.TransactionPayload, 100000)
 		batchWorker := worker.NewBatchWorker(i, worker.BatchWorkerOpts{
 			Logger:         logger,
-			TxChan:         txChan,
+			TxChan:         txChans[i],
 			BatchSize:      10000,
 			BatchInterval:  250 * time.Millisecond,
 			Batchable:      store.Transactions,
@@ -72,7 +73,7 @@ func setupServer(ctx context.Context, maxConns int, logger *slog.Logger) *servic
 		Accounts:       store.Accounts,
 		Transactions:   store.Transactions,
 		BucketProvider: flushWorker,
-		TxChan:         txChan,
+		TxChans:         txChans,
 		Pool:           pool,
 	})
 

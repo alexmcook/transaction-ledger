@@ -27,19 +27,6 @@ type TransactionResponse struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
-// TransactionPayload represents the transaction data received in API requests
-type TransactionPayload struct {
-	// AccountId is the unique identifier of the account associated with the transaction
-	//	@example	880e8400-e29b-41d4-a716-446655440000
-	AccountId uuid.UUID `json:"accountId" binding:"required"`
-	// Type is the type of the transaction (e.g., credit or debit) as an integer
-	//	@example	0
-	Type int `json:"type" binding:"required"`
-	// Amount is the amount of the transaction
-	//	@example	500
-	Amount int64 `json:"amount" binding:"required"`
-}
-
 func toTransactionResponse(t *model.Transaction) *TransactionResponse {
 	return &TransactionResponse{
 		Id:        t.Id,
@@ -84,34 +71,41 @@ func (s *Server) handleGetTransaction(c fiber.Ctx) error {
 // @Summary		Create a new transaction
 // @Description	Creates a new transaction for an account
 // @Produce		json
-// @Param			transaction	body		TransactionPayload	true	"Transaction payload"
+// @Param			transaction	body		model.TransactionPayload	true	"Transaction payload"
 // @Success		201			{object}	TransactionResponse	"Transaction object"
 // @Failure		400			{object}	ErrorResponse		"Invalid request payload"
 // @Failure		500			{object}	ErrorResponse		"Failed to create transaction"
 // @Router			/transactions [post]
 func (s *Server) handleCreateTransaction(c fiber.Ctx) error {
-	var p TransactionPayload
+	var p model.TransactionPayload
 
 	err := c.Bind().Body(&p)
 	if err != nil {
 		return s.respondWithError(c, fiber.StatusBadRequest, "Invalid JSON payload", err)
 	}
 
-	tx := &model.Transaction{
-		Id:        uuid.Must(uuid.NewV7()),
-		AccountId: p.AccountId,
-		Type:      p.Type,
-		Amount:    p.Amount,
-		CreatedAt: time.Now().UnixMilli(),
-	}
+	workerIdx := getWorkerID(p.AccountId, len(s.svc.TxChans))
 
 	select {
-	case s.svc.TxChan <- tx:
+	case s.svc.TxChans[workerIdx] <- p:
 		metrics.TransactionsSuccess.Inc()
 	default:
 		// Channel is full, respond with service unavailable
 		return s.respondWithError(c, fiber.StatusServiceUnavailable, "Transaction service is busy", nil)
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(toTransactionResponse(tx))
+	return c.SendStatus(fiber.StatusCreated)
+}
+
+func getWorkerID(accountId uuid.UUID, numWorkers int) int {
+	const (
+		offset32 = 2166136261
+		prime32 = 16777619
+	)
+	hash := uint32(offset32)
+	for _, b := range accountId {
+		hash ^= uint32(b)
+		hash *= prime32
+	}
+	return int(hash % uint32(numWorkers))
 }

@@ -25,6 +25,19 @@ type Transaction struct {
 	CreatedAt int64 // Milliseconds since epoch
 }
 
+// TransactionPayload represents the transaction data received in API requests
+type TransactionPayload struct {
+	// AccountId is the unique identifier of the account associated with the transaction
+	//	@example	880e8400-e29b-41d4-a716-446655440000
+	AccountId uuid.UUID `json:"accountId" binding:"required"`
+	// Type is the type of the transaction (e.g., credit or debit) as an integer
+	//	@example	0
+	Type int `json:"type" binding:"required"`
+	// Amount is the amount of the transaction
+	//	@example	500
+	Amount int64 `json:"amount" binding:"required"`
+}
+
 const (
 	Credit = iota
 	Debit

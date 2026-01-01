@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/alexmcook/transaction-ledger/internal/model"
 	"github.com/google/uuid"
-	// "github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"time"
 )
@@ -15,7 +15,7 @@ type TransactionsRepo struct {
 }
 
 type txSource struct {
-	txs      []*model.Transaction
+	txs      []model.Transaction
 	idx      int
 	bucketId int32
 	err      error
@@ -141,32 +141,32 @@ func (r *TransactionsRepo) FlushBucket(ctx context.Context, bucketId int32) erro
 	return tx.Commit(ctx)
 }
 
-func (r *TransactionsRepo) BatchProcess(ctx context.Context, txs []*model.Transaction, bucketId int32) error {
-	// if bucketId != 0 && bucketId != 1 {
-	// 	return fmt.Errorf("invalid bucketId: %d", bucketId)
-	// }
-	//
-	// partition := fmt.Sprintf("tx_buf_%d", bucketId)
-	//
-	// source := &txSource{
-	// 	txs:      txs,
-	// 	idx:      0,
-	// 	bucketId: bucketId,
-	// }
-	//
-	// rows, err := r.pool.CopyFrom(
-	// 	ctx,
-	// 	pgx.Identifier{partition}, // Directly target the partition
-	// 	[]string{"id", "account_id", "amount", "transaction_type", "created_at", "bucket_id"},
-	// 	source,
-	// )
-	// if err != nil {
-	// 	return err
-	// }
-	//
-	// if int(rows) != len(txs) {
-	// 	return fmt.Errorf("expected to insert %d rows, but inserted %d", len(txs), rows)
-	// }
+func (r *TransactionsRepo) BatchProcess(ctx context.Context, txs []model.Transaction, bucketId int32) error {
+	if bucketId != 0 && bucketId != 1 {
+		return fmt.Errorf("invalid bucketId: %d", bucketId)
+	}
+
+	partition := fmt.Sprintf("tx_buf_%d", bucketId)
+
+	source := &txSource{
+		txs:      txs,
+		idx:      0,
+		bucketId: bucketId,
+	}
+
+	rows, err := r.pool.CopyFrom(
+		ctx,
+		pgx.Identifier{partition}, // Directly target the partition
+		[]string{"id", "account_id", "amount", "transaction_type", "created_at", "bucket_id"},
+		source,
+	)
+	if err != nil {
+		return err
+	}
+
+	if int(rows) != len(txs) {
+		return fmt.Errorf("expected to insert %d rows, but inserted %d", len(txs), rows)
+	}
 
 	return nil
 }

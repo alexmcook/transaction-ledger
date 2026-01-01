@@ -13,8 +13,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '4'
-          memory: 2G
+          cpus: '8'
+          memory: 4G
     volumes:
       - db_data:/var/lib/postgresql
     healthcheck:
@@ -47,7 +47,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL}
       ENV: ${ENV}
-      GOMAXPROCS: 2
+      GOMAXPROCS: 4
     ports:
       - "8080:8080"
     depends_on:
@@ -59,7 +59,7 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2'
+          cpus: '4'
           memory: 1G
 
   prometheus:

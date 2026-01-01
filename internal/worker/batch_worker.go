@@ -4,19 +4,20 @@ import (
 	"context"
 	"github.com/alexmcook/transaction-ledger/internal/db"
 	"github.com/alexmcook/transaction-ledger/internal/model"
+	"github.com/google/uuid"
 	"log/slog"
 	"sync"
 	"time"
 )
 
 type Batchable interface {
-	BatchProcess(ctx context.Context, batch []*model.Transaction, bucketId int32) error
+	BatchProcess(ctx context.Context, batch []model.Transaction, bucketId int32) error
 }
 
 type BatchWorker struct {
 	id             int
 	logger         *slog.Logger
-	txChan         chan *model.Transaction
+	txChan         chan model.TransactionPayload
 	batchSize      int
 	batchInterval  time.Duration
 	batchable      Batchable
@@ -26,7 +27,7 @@ type BatchWorker struct {
 
 type BatchWorkerOpts struct {
 	Logger         *slog.Logger
-	TxChan         chan *model.Transaction
+	TxChan         chan model.TransactionPayload
 	BatchSize      int
 	BatchInterval  time.Duration
 	Batchable      Batchable
@@ -53,19 +54,27 @@ func (bw *BatchWorker) Start(ctx context.Context) {
 }
 
 func (bw *BatchWorker) batchRoutine(ctx context.Context) {
-	batch := make([]*model.Transaction, 0, bw.batchSize)
+	batch := make([]model.Transaction, 0, bw.batchSize)
 	ticker := time.NewTicker(bw.batchInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
-		case tx, ok := <-bw.txChan:
+		case p, ok := <-bw.txChan:
 			if !ok {
 				bw.logger.Debug("BatchWorker: txChan closed", slog.Int("id", bw.id))
 				if len(batch) > 0 {
 					bw.processBatch(batch)
 				}
 				return
+			}
+
+			tx := model.Transaction{
+				Id:						 	 uuid.Must(uuid.NewV7()),
+				AccountId:       p.AccountId,
+				Amount:          p.Amount,
+				Type:            p.Type,
+				CreatedAt:       time.Now().UnixMilli(),
 			}
 
 			batch = append(batch, tx)
@@ -89,7 +98,7 @@ func (bw *BatchWorker) batchRoutine(ctx context.Context) {
 	}
 }
 
-func (bw *BatchWorker) processBatch(batch []*model.Transaction) {
+func (bw *BatchWorker) processBatch(batch []model.Transaction) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

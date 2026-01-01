@@ -3,6 +3,8 @@ package api
 import (
 	"github.com/alexmcook/transaction-ledger/internal/service"
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/pprof"
+	"github.com/bytedance/sonic"
 	"log/slog"
 )
 
@@ -13,7 +15,10 @@ type Server struct {
 }
 
 func NewServer(svc *service.Service, logger *slog.Logger) *Server {
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		JSONEncoder: sonic.Marshal,
+		JSONDecoder: sonic.Unmarshal,
+	})
 
 	s := &Server{
 		app:    app,
@@ -22,6 +27,7 @@ func NewServer(svc *service.Service, logger *slog.Logger) *Server {
 	}
 
 	s.registerRoutes()
+	s.app.Use(pprof.New())
 	return s
 }
 

@@ -32,7 +32,7 @@ type Service struct {
 	Accounts       AccountStore
 	Transactions   TransactionStore
 	BucketProvider db.BucketProvider
-	TxChan         chan *model.Transaction
+	TxChans        []chan model.TransactionPayload
 	pool           *pgxpool.Pool
 }
 
@@ -42,7 +42,7 @@ type Deps struct {
 	Accounts       AccountStore
 	Transactions   TransactionStore
 	BucketProvider db.BucketProvider
-	TxChan         chan *model.Transaction
+	TxChans        []chan model.TransactionPayload
 	Pool           *pgxpool.Pool
 }
 
@@ -53,12 +53,16 @@ func New(d Deps) *Service {
 		Accounts:       d.Accounts,
 		Transactions:   d.Transactions,
 		BucketProvider: d.BucketProvider,
-		TxChan:         d.TxChan,
+		TxChans:       d.TxChans,
 	}
 }
 
 func (s *Service) Shutdown() {
-	close(s.TxChan)
+	for _, ch := range s.TxChans {
+		close(ch)
+	}
+
 	time.Sleep(1 * time.Second) // Allow time for batch workers to finish
+
 	s.pool.Close()
 }
