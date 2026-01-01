@@ -1,13 +1,13 @@
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY,
-  created_at BIGINT NOT NULL
+  created_at TIMESTAMPTZ NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS accounts (
   id UUID PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   balance BIGINT NOT NULL,
-  created_at BIGINT NOT NULL
+  created_at TIMESTAMPTZ NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS transaction_types (
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   account_id UUID NOT NULL,
   amount BIGINT NOT NULL,
   transaction_type SMALLINT NOT NULL,
-  created_at BIGINT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL,
   bucket_id SMALLINT NOT NULL
 ) PARTITION BY LIST (bucket_id);
 
