@@ -23,9 +23,13 @@ func NewServer(store StoreRegistry) *Server {
 }
 
 func (s *Server) registerRoutes() {
-	s.app.Get("/health", handleHealth)
-	s.app.Get("/users/:id", handleGetUser)
-	s.app.Post("/users", handleCreateUser)
+	s.app.Get("/health", s.handleHealth)
+
+	s.app.Get("/users/:id", s.handleGetUser)
+	s.app.Post("/users", s.handleCreateUser)
+
+	s.app.Get("/accounts/:id", s.handleGetAccount)
+	s.app.Post("/accounts", s.handleCreateAccount)
 }
 
 func (s *Server) Run() error {

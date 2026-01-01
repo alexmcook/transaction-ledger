@@ -11,20 +11,46 @@ type ErrorResponse struct {
 	Message string `json:"message"`
 }
 
-type CreateUserRequest struct {
-	ID uuid.UUID `json:"id"`
-}
-
 type UserResponse struct {
 	ID        uuid.UUID `json:"id"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type CreateAccountRequest struct {
+	UserID  uuid.UUID `json:"user_id"`
+	Balance int64     `json:"balance"`
+}
+
+type AccountResponse struct {
+	ID        uuid.UUID `json:"id"`
+	UserID    uuid.UUID `json:"user_id"`
+	Balance   int64     `json:"balance"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 type StoreRegistry interface {
 	Users() UserStore
+	Accounts() AccountStore
 }
 
 type UserStore interface {
 	GetUser(ctx context.Context, id uuid.UUID) (*model.User, error)
-	CreateUser(ctx context.Context, id uuid.UUID, createdAt time.Time) error
+	CreateUser(ctx context.Context, params CreateUserParams) error
+}
+
+type AccountStore interface {
+	GetAccount(ctx context.Context, id uuid.UUID) (*model.Account, error)
+	CreateAccount(ctx context.Context, params CreateAccountParams) error
+}
+
+type CreateUserParams struct {
+	ID        uuid.UUID
+	CreatedAt time.Time
+}
+
+type CreateAccountParams struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	Balance   int64
+	CreatedAt time.Time
 }
