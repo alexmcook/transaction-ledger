@@ -9,10 +9,14 @@ import (
 	"github.com/joho/godotenv"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 func main() {
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	log := logger.NewLogger()
 	log.Info("Starting Transaction Ledger API Server")
@@ -35,11 +39,29 @@ func main() {
 	}
 	defer pool.Close()
 
-	store := storage.NewPostgresStore(pool)
-
-	server := api.NewServer(log, store)
-	if err := server.Run(); err != nil {
-		log.Error("Failed to start server", slog.String("error", err.Error()))
+	if err := pool.Ping(ctx); err != nil {
+		log.Error("Failed to ping database", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
+
+	store := storage.NewPostgresStore(pool)
+	server := api.NewServer(log, store)
+
+	go func() {
+		if err := server.Run(); err != nil {
+			log.Error("Failed to start server", slog.String("error", err.Error()))
+		}
+	}()
+
+	<-ctx.Done()
+	log.Info("Shutting down...")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := server.Stop(shutdownCtx); err != nil {
+		log.Error("Failed to stop server", slog.String("error", err.Error()))
+	}
+
+	log.Info("Server stopped")
 }

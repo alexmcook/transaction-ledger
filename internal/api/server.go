@@ -1,8 +1,10 @@
 package api
 
 import (
-	"github.com/gofiber/fiber/v3"
+	"context"
 	"log/slog"
+
+	"github.com/gofiber/fiber/v3"
 )
 
 type Server struct {
@@ -39,6 +41,6 @@ func (s *Server) Run() error {
 	return s.app.Listen(":8080")
 }
 
-func (s *Server) Shutdown() error {
-	return s.app.Shutdown()
+func (s *Server) Stop(ctx context.Context) error {
+	return s.app.ShutdownWithContext(ctx)
 }
