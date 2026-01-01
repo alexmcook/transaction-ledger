@@ -25,11 +25,8 @@ func NewServer(svc *service.Service, logger *slog.Logger) *Server {
 	return s
 }
 
-func (s *Server) Run(addr ...string) error {
+func (s *Server) Run() error {
 	serverAddr := ":8080"
-	if len(addr) > 0 {
-		serverAddr = addr[0]
-	}
 
 	if !fiber.IsChild() {
 		s.logger.Info("Starting server", slog.String("addr", serverAddr))
@@ -60,6 +57,11 @@ func (s *Server) json(c fiber.Ctx) error {
 
 func (s *Server) registerRoutes() {
 	s.app.Get("/health", s.handleHealth)
+
+	// If service is not provided, do not register API routes
+	if s.svc == nil {
+		return
+	}
 
 	api := s.app.Group("/")
 	api.Use(s.json)

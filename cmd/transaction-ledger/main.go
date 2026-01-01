@@ -52,13 +52,13 @@ func setupServer(ctx context.Context, maxConns int, logger *slog.Logger) *servic
 	})
 	flushWorker.Start(ctx)
 
-	txChan := make(chan *model.Transaction, 1000000)
+	txChan := make(chan *model.Transaction, 100000)
 
 	for i := range 10 {
 		batchWorker := worker.NewBatchWorker(i, worker.BatchWorkerOpts{
 			Logger:         logger,
 			TxChan:         txChan,
-			BatchSize:      1000,
+			BatchSize:      10000,
 			BatchInterval:  250 * time.Millisecond,
 			Batchable:      store.Transactions,
 			BucketProvider: flushWorker,
@@ -82,9 +82,6 @@ func setupServer(ctx context.Context, maxConns int, logger *slog.Logger) *servic
 func main() {
 	ctx := context.Background()
 
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt)
-
 	isProd := os.Getenv("ENV") == "production"
 	logger, err := logger.Init(isProd)
 	if err != nil {
@@ -105,18 +102,23 @@ func main() {
 	server := api.NewServer(svc, logger)
 
 	go func() {
-		err := server.Run()
+		quit := make(chan os.Signal, 1)
+		signal.Notify(quit, os.Interrupt)
+
+		<-quit
+
+		logger.InfoContext(ctx, "Shutting down server")
+
+		err = server.Shutdown()
 		if err != nil {
-			logger.ErrorContext(ctx, "Server failed to start", "error", err)
-			os.Exit(1)
+			logger.ErrorContext(ctx, "Failed to shut down server gracefully", "error", err)
 		}
 	}()
 
-	<-quit
-	logger.InfoContext(ctx, "Shutting down server")
-	err = server.Shutdown()
+	err = server.Run()
 	if err != nil {
-		logger.ErrorContext(ctx, "Failed to shut down server gracefully", "error", err)
+		logger.ErrorContext(ctx, "Server failed to start", "error", err)
+		os.Exit(1)
 	}
 
 	if fiber.IsChild() {
