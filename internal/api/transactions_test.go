@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"github.com/alexmcook/transaction-ledger/internal/model"
 	"github.com/alexmcook/transaction-ledger/internal/service"
-	"github.com/google/uuid"
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 	"log/slog"
 	"net/http/httptest"
 	"testing"
@@ -78,13 +78,13 @@ func TestHandleCreateTransaction(t *testing.T) {
 		expectedCode int
 	}{
 		{
-			name: "ValidTransaction",
-			payload: fmt.Sprintf(`{"accountId":"%s","type":1,"amount":1000}`, uuid.String()),
+			name:         "ValidTransaction",
+			payload:      fmt.Sprintf(`{"accountId":"%s","type":1,"amount":1000}`, uuid.String()),
 			expectedCode: fiber.StatusCreated,
 		},
 		{
-			name: "InvalidAccountId",
-			payload: `{"accountId":"invalid-uuid","type":1,"amount":1000}`,
+			name:         "InvalidAccountId",
+			payload:      `{"accountId":"invalid-uuid","type":1,"amount":1000}`,
 			expectedCode: fiber.StatusBadRequest,
 		},
 	}

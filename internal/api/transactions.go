@@ -3,8 +3,8 @@ package api
 import (
 	"github.com/alexmcook/transaction-ledger/internal/metrics"
 	"github.com/alexmcook/transaction-ledger/internal/model"
-	"github.com/google/uuid"
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 	"time"
 )
 
@@ -90,28 +90,28 @@ func (s *Server) handleGetTransaction(c fiber.Ctx) error {
 // @Failure		500			{object}	ErrorResponse		"Failed to create transaction"
 // @Router			/transactions [post]
 func (s *Server) handleCreateTransaction(c fiber.Ctx) error {
-		var p TransactionPayload
+	var p TransactionPayload
 
-		err := c.Bind().Body(&p)
-		if err != nil {
-			return s.respondWithError(c, fiber.StatusBadRequest, "Invalid JSON payload", err)
-		}
+	err := c.Bind().Body(&p)
+	if err != nil {
+		return s.respondWithError(c, fiber.StatusBadRequest, "Invalid JSON payload", err)
+	}
 
-		tx := &model.Transaction{
-			Id:        uuid.Must(uuid.NewV7()),
-			AccountId: p.AccountId,
-			Type:      p.Type,
-			Amount:    p.Amount,
-			CreatedAt: time.Now().UnixMilli(),
-		}
+	tx := &model.Transaction{
+		Id:        uuid.Must(uuid.NewV7()),
+		AccountId: p.AccountId,
+		Type:      p.Type,
+		Amount:    p.Amount,
+		CreatedAt: time.Now().UnixMilli(),
+	}
 
-		select {
-		case s.svc.TxChan <- tx:
-			metrics.TransactionsSuccess.Inc()
-		default:
-			// Channel is full, respond with service unavailable
-			return s.respondWithError(c, fiber.StatusServiceUnavailable, "Transaction service is busy", nil)
-		}
+	select {
+	case s.svc.TxChan <- tx:
+		metrics.TransactionsSuccess.Inc()
+	default:
+		// Channel is full, respond with service unavailable
+		return s.respondWithError(c, fiber.StatusServiceUnavailable, "Transaction service is busy", nil)
+	}
 
-		return c.Status(fiber.StatusCreated).JSON(toTransactionResponse(tx))
+	return c.Status(fiber.StatusCreated).JSON(toTransactionResponse(tx))
 }

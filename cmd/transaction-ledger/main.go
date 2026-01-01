@@ -9,20 +9,22 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"os"
-	"time"
-
 	"github.com/alexmcook/transaction-ledger/internal/api"
 	"github.com/alexmcook/transaction-ledger/internal/db"
 	"github.com/alexmcook/transaction-ledger/internal/logger"
 	"github.com/alexmcook/transaction-ledger/internal/model"
 	"github.com/alexmcook/transaction-ledger/internal/service"
 	"github.com/alexmcook/transaction-ledger/internal/worker"
+	"github.com/gofiber/fiber/v3"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"time"
 )
 
-func main() {
+func setupMetrics() {
 	go func() {
 		http.Handle("/metrics", promhttp.Handler())
 		err := http.ListenAndServe(":2112", nil)
@@ -31,24 +33,15 @@ func main() {
 			os.Exit(1)
 		}
 	}()
+}
 
-	ctx := context.Background()
-
-	isProd := os.Getenv("ENV") == "production"
-	logger, err := logger.Init(isProd)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
-		os.Exit(1)
-	}
-
-	var maxConns int32 = 110
-	pool, err := db.Connect(ctx, maxConns)
+func setupServer(ctx context.Context, maxConns int, logger *slog.Logger) *service.Service {
+	pool, err := db.Connect(ctx, int32(maxConns))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to connect to database: %v\n", err)
 		logger.ErrorContext(ctx, "Failed to connect to database", "error", err)
 		os.Exit(1)
 	}
-	defer pool.Close()
 
 	store := db.NewStore(pool, logger)
 
@@ -80,13 +73,54 @@ func main() {
 		Transactions:   store.Transactions,
 		BucketProvider: flushWorker,
 		TxChan:         txChan,
+		Pool:           pool,
 	})
 
-	server := api.NewServer(svc, logger)
-	err = server.Run()
+	return svc
+}
+
+func main() {
+	ctx := context.Background()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt)
+
+	isProd := os.Getenv("ENV") == "production"
+	logger, err := logger.Init(isProd)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Server failed to start: %v\n", err)
-		logger.ErrorContext(ctx, "Server failed to start", "error", err)
+		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
 		os.Exit(1)
+	}
+
+	var svc *service.Service
+
+	// Only setup the server in child processes
+	if fiber.IsChild() {
+		maxConns := 110
+		svc = setupServer(ctx, maxConns, logger)
+	} else {
+		setupMetrics()
+	}
+
+	server := api.NewServer(svc, logger)
+
+	go func() {
+		err := server.Run()
+		if err != nil {
+			logger.ErrorContext(ctx, "Server failed to start", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	<-quit
+	logger.InfoContext(ctx, "Shutting down server")
+	err = server.Shutdown()
+	if err != nil {
+		logger.ErrorContext(ctx, "Failed to shut down server gracefully", "error", err)
+	}
+
+	if fiber.IsChild() {
+		logger.InfoContext(ctx, "Service: shutting down service")
+		svc.Shutdown()
 	}
 }

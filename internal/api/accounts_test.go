@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"log/slog"
 	"github.com/alexmcook/transaction-ledger/internal/model"
 	"github.com/alexmcook/transaction-ledger/internal/service"
-	"github.com/google/uuid"
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
+	"log/slog"
 	"net/http/httptest"
 	"testing"
 )
@@ -64,7 +64,6 @@ func TestHandleGetAccount(t *testing.T) {
 	}
 }
 
-
 func TestHandleCreateAccount(t *testing.T) {
 	uuid, err := uuid.NewV7()
 	if err != nil {
@@ -77,14 +76,14 @@ func TestHandleCreateAccount(t *testing.T) {
 		expectedCode int
 	}{
 		{
-				name: "ValidAccount",
-				payload: fmt.Sprintf(`{"userId": "%s", "balance": %d}`, uuid.String(), 100),
-				expectedCode: fiber.StatusCreated,
+			name:         "ValidAccount",
+			payload:      fmt.Sprintf(`{"userId": "%s", "balance": %d}`, uuid.String(), 100),
+			expectedCode: fiber.StatusCreated,
 		},
 		{
-				name: "InvalidUserId",
-				payload: `{"userId": "invalid-uuid", "balance": 100}`,
-				expectedCode: fiber.StatusBadRequest,
+			name:         "InvalidUserId",
+			payload:      `{"userId": "invalid-uuid", "balance": 100}`,
+			expectedCode: fiber.StatusBadRequest,
 		},
 	}
 
@@ -111,7 +110,6 @@ func TestHandleCreateAccount(t *testing.T) {
 			if contentType != expectedType {
 				t.Errorf("test %q: expected Content-Type %q, got %q", tt.name, expectedType, contentType)
 			}
-
 
 			if resp.StatusCode != tt.expectedCode {
 				t.Errorf("test %q: expected status %d, got %d", tt.name, tt.expectedCode, resp.StatusCode)

@@ -7,7 +7,7 @@ import (
 )
 
 type Server struct {
-	app *fiber.App
+	app    *fiber.App
 	logger *slog.Logger
 	svc    *service.Service
 }
@@ -16,7 +16,7 @@ func NewServer(svc *service.Service, logger *slog.Logger) *Server {
 	app := fiber.New()
 
 	s := &Server{
-		app: app,
+		app:    app,
 		logger: logger,
 		svc:    svc,
 	}
@@ -78,4 +78,8 @@ func (s *Server) registerRoutes() {
 // @Router			/health [get]
 func (s *Server) handleHealth(c fiber.Ctx) error {
 	return c.SendString("OK")
+}
+
+func (s *Server) Shutdown() error {
+	return s.app.Shutdown()
 }

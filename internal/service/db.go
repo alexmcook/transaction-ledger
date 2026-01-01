@@ -5,7 +5,9 @@ import (
 	"github.com/alexmcook/transaction-ledger/internal/db"
 	"github.com/alexmcook/transaction-ledger/internal/model"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"log/slog"
+	"time"
 )
 
 type UserStore interface {
@@ -31,6 +33,7 @@ type Service struct {
 	Transactions   TransactionStore
 	BucketProvider db.BucketProvider
 	TxChan         chan *model.Transaction
+	pool           *pgxpool.Pool
 }
 
 type Deps struct {
@@ -40,6 +43,7 @@ type Deps struct {
 	Transactions   TransactionStore
 	BucketProvider db.BucketProvider
 	TxChan         chan *model.Transaction
+	Pool           *pgxpool.Pool
 }
 
 func New(d Deps) *Service {
@@ -51,4 +55,10 @@ func New(d Deps) *Service {
 		BucketProvider: d.BucketProvider,
 		TxChan:         d.TxChan,
 	}
+}
+
+func (s *Service) Shutdown() {
+	close(s.TxChan)
+	time.Sleep(1 * time.Second) // Allow time for batch workers to finish
+	s.pool.Close()
 }

@@ -2,10 +2,10 @@ package api
 
 import (
 	"github.com/gofiber/fiber/v3"
+	"io"
 	"log/slog"
 	"net/http/httptest"
 	"testing"
-	"io"
 )
 
 func TestHandleHealth(t *testing.T) {

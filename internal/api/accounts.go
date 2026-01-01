@@ -2,8 +2,8 @@ package api
 
 import (
 	"github.com/alexmcook/transaction-ledger/internal/model"
-	"github.com/google/uuid"
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 	"time"
 )
 
