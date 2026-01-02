@@ -1,9 +1,13 @@
 package storage
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/alexmcook/transaction-ledger/internal/api"
@@ -16,6 +20,30 @@ import (
 type TransactionStore struct {
 	pool             *pgxpool.Pool
 	partitionProvder PartitionProvider
+}
+
+var sourcePool = sync.Pool{
+	New: func() any {
+		s := &TransactionCopySource{}
+
+		s.idBuf.Valid = true
+		s.accBuf.Valid = true
+		s.amtBuf.Valid = true
+		s.typeBuf.Valid = true
+		s.timeBuf.Valid = true
+		s.partBuf.Valid = true
+
+		s.buf = []any{
+			&s.idBuf,
+			&s.accBuf,
+			&s.amtBuf,
+			&s.typeBuf,
+			&s.timeBuf,
+			&s.partBuf,
+		}
+
+		return s
+	},
 }
 
 func (ts *TransactionStore) CreateTransaction(ctx context.Context, tx api.CreateTransactionRequest) error {
@@ -54,7 +82,19 @@ func (ts *TransactionStore) CreateBatchTransaction(ctx context.Context, txs []ap
 	}
 
 	activePartition := ts.partitionProvder.GetActivePartition()
-	source := NewTransactionCopySource(txs, activePartition)
+	source := sourcePool.Get().(*TransactionCopySource)
+	source.rows = txs
+	source.pos = 0
+	source.now = time.Now()
+	source.partitionKey = activePartition
+	uid, _ := uuid.NewV7()
+	source.baseUUID = uid
+	source.seed = rand.Uint32()
+
+	defer func() {
+		source.rows = nil
+		sourcePool.Put(source)
+	}()
 
 	partitionStr := fmt.Sprintf("transactions_p%d", activePartition)
 	count, err := ts.pool.CopyFrom(
@@ -65,4 +105,45 @@ func (ts *TransactionStore) CreateBatchTransaction(ctx context.Context, txs []ap
 	)
 
 	return int(count), err
+}
+
+func (ts *TransactionStore) CreateBinaryBatchTransaction(ctx context.Context, txs []api.CreateTransactionRequest) (int, error) {
+	if len(txs) == 0 {
+		return 0, nil
+	}
+
+	buf := make([]byte, 0, 15+(len(txs)*54)+2) // Preallocate buffer
+	buf = append(buf, "PGCOPY\n\xff\r\n\x00"...)
+	buf = binary.BigEndian.AppendUint32(buf, 0) // Flags
+	buf = binary.BigEndian.AppendUint32(buf, 0) // Header extension area size
+
+	activePartition := ts.partitionProvder.GetActivePartition()
+	source := sourcePool.Get().(*TransactionCopySource)
+
+	now := time.Now()
+	source.rawTime = (now.Unix()-946684800)*1e6 + int64(now.Nanosecond()/1e3) // Microseconds since 2000-01-01
+	source.partitionKey = activePartition
+	uid, _ := uuid.NewV7()
+	source.baseUUID = uid
+	source.seed = rand.Uint32()
+	defer func() {
+		sourcePool.Put(source)
+	}()
+
+	for i := range txs {
+		buf = source.EncodeRowBinary(buf, &txs[i])
+	}
+
+	buf = binary.BigEndian.AppendUint16(buf, 0xffff) // End of copy marker
+
+	conn, err := ts.pool.Acquire(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer conn.Release()
+
+	rawConn := conn.Conn().PgConn()
+	_, err = rawConn.CopyFrom(ctx, bytes.NewReader(buf), fmt.Sprintf("COPY transactions_p%d FROM STDIN WITH (FORMAT BINARY)", activePartition))
+
+	return len(txs), err
 }

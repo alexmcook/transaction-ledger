@@ -9,11 +9,11 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "${POSTGRES_PORT}:5432"
-    deploy:
-      resources:
-        limits:
-          cpus: '4'
-          memory: 2G
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '4'
+    #       memory: 4G
     volumes:
       - db_data:/var/lib/postgresql
     healthcheck:
@@ -55,11 +55,11 @@ services:
       migrate:
         condition: service_completed_successfully
     network_mode: host
-    deploy:
-      resources:
-        limits:
-          cpus: '4'
-          memory: 1G
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '4'
+    #       memory: 2G
 
 volumes:
   db_data:

@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/bytedance/sonic"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/pprof"
 )
@@ -16,7 +17,8 @@ type Server struct {
 
 func NewServer(log *slog.Logger, store StoreRegistry) *Server {
 	app := fiber.New(fiber.Config{
-		AppName: "Transaction Ledger",
+		JSONEncoder: sonic.Marshal,
+		JSONDecoder: sonic.Unmarshal,
 	})
 
 	app.Use(pprof.New())

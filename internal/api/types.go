@@ -71,6 +71,7 @@ type TransactionStore interface {
 	GetTransaction(ctx context.Context, id uuid.UUID) (*model.Transaction, error)
 	CreateTransaction(ctx context.Context, tx CreateTransactionRequest) error
 	CreateBatchTransaction(ctx context.Context, txs []CreateTransactionRequest) (int, error)
+	CreateBinaryBatchTransaction(ctx context.Context, txs []CreateTransactionRequest) (int, error)
 }
 
 type CreateUserParams struct {
