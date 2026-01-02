@@ -50,7 +50,7 @@ func (pm *PartitionManager) StartRotationWorker(ctx context.Context, interval ti
 				pm.rotateAndProcess(opCtx)
 				cancel()
 			case <-ctx.Done():
-				pm.log.InfoContext(ctx, "Partition rotation worker stopping")
+				pm.log.DebugContext(ctx, "Partition rotation worker stopping")
 				return
 			}
 		}
@@ -60,7 +60,7 @@ func (pm *PartitionManager) StartRotationWorker(ctx context.Context, interval ti
 func (pm *PartitionManager) rotateAndProcess(ctx context.Context) {
 	partitionKey := pm.GetActivePartition()
 	pm.switchPartition()
-	pm.log.InfoContext(ctx, "Switched active partition", slog.Any("partition_key", partitionKey^1))
+	pm.log.DebugContext(ctx, "Switched active partition", slog.Any("partition_key", partitionKey^1))
 
 	// Wait for in flight transactions to complete
 	timer := time.NewTimer(1 * time.Second)
@@ -69,7 +69,7 @@ func (pm *PartitionManager) rotateAndProcess(ctx context.Context) {
 	select {
 	case <-timer.C:
 	case <-ctx.Done():
-		pm.log.InfoContext(ctx, "Partition processing cancelled before starting", slog.Any("partition_key", partitionKey))
+		pm.log.DebugContext(ctx, "Partition processing cancelled before starting", slog.Any("partition_key", partitionKey))
 		return
 	}
 
@@ -105,7 +105,7 @@ func (pm *PartitionManager) rotateAndProcess(ctx context.Context) {
 			return err
 		}
 
-		// Reattach
+		// Re-attach
 		reattachQuery := fmt.Sprintf("ALTER TABLE transactions ATTACH PARTITION transactions_p%d FOR VALUES IN (%d)", partitionKey, partitionKey)
 		_, err = tx.Exec(ctx, reattachQuery)
 		return err
@@ -116,5 +116,5 @@ func (pm *PartitionManager) rotateAndProcess(ctx context.Context) {
 		return
 	}
 
-	pm.log.InfoContext(ctx, "Successfully processed partition", slog.Any("partition_key", partitionKey))
+	pm.log.DebugContext(ctx, "Successfully processed partition", slog.Any("partition_key", partitionKey))
 }

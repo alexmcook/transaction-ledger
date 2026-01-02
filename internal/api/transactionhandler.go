@@ -73,3 +73,16 @@ func (s *Server) handleCreateTransaction(c fiber.Ctx) error {
 		CreatedAt:       now,
 	})
 }
+
+func (s *Server) handleCreateBatchTransaction(c fiber.Ctx) error {
+	var req []CreateTransactionRequest
+	if err := c.Bind().JSON(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{
+			Message: "Invalid request body",
+		})
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(BatchTransactionResponse{
+		CreatedCount: len(req),
+	})
+}

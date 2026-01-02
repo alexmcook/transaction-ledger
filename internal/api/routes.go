@@ -15,6 +15,8 @@ func (s *Server) registerRoutes() {
 
 	s.app.Get("/transactions/:id", s.handleGetTransaction)
 	s.app.Post("/transactions", s.handleCreateTransaction)
+
+	s.app.Post("/transactions/batch", s.handleCreateBatchTransaction)
 }
 
 func (s *Server) handleHealth(c fiber.Ctx) error {

@@ -43,6 +43,10 @@ type TransactionResponse struct {
 	CreatedAt       time.Time `json:"created_at"`
 }
 
+type BatchTransactionResponse struct {
+	CreatedCount int `json:"created_count"`
+}
+
 type StoreRegistry interface {
 	Users() UserStore
 	Accounts() AccountStore
