@@ -29,32 +29,32 @@ func exportIDsToCSV(ids []uuid.UUID, filename string) error {
 	return nil
 }
 
-func seedTransactions(ctx context.Context, pool *pgxpool.Pool, accountIds []uuid.UUID, n int, now int64) error {
-	batch := &pgx.Batch{}
-	for range n {
-		transactionId, err := uuid.NewV7()
-		if err != nil {
-			return err
-		}
-		accountId := accountIds[rand.Intn(len(accountIds))]
-		amount := int64(rand.Intn(200) - 100)
-		var transactionType int
-		if amount >= 0 {
-			transactionType = 1 // credit
-		} else {
-			transactionType = 2 // debit
-		}
-		batch.Queue("INSERT INTO transactions (id, account_id, amount, transaction_type, created_at) VALUES ($1, $2, $3, $4, $5)", transactionId, accountId, amount, transactionType, now)
-	}
-	br := pool.SendBatch(ctx, batch)
-	err := br.Close()
-	if err != nil {
-		return err
-	}
-	return nil
-}
+// func seedTransactions(ctx context.Context, pool *pgxpool.Pool, accountIds []uuid.UUID, n int, now int64) error {
+// 	batch := &pgx.Batch{}
+// 	for range n {
+// 		transactionId, err := uuid.NewV7()
+// 		if err != nil {
+// 			return err
+// 		}
+// 		accountId := accountIds[rand.Intn(len(accountIds))]
+// 		amount := int64(rand.Intn(200) - 100)
+// 		var transactionType int
+// 		if amount >= 0 {
+// 			transactionType = 1 // credit
+// 		} else {
+// 			transactionType = 2 // debit
+// 		}
+// 		batch.Queue("INSERT INTO transactions (id, account_id, amount, transaction_type, created_at) VALUES ($1, $2, $3, $4, $5)", transactionId, accountId, amount, transactionType, now)
+// 	}
+// 	br := pool.SendBatch(ctx, batch)
+// 	err := br.Close()
+// 	if err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
 
-func seedAccounts(ctx context.Context, pool *pgxpool.Pool, userIds []uuid.UUID, n int, now int64) ([]uuid.UUID, error) {
+func seedAccounts(ctx context.Context, pool *pgxpool.Pool, userIds []uuid.UUID, n int, now time.Time) ([]uuid.UUID, error) {
 	accountIds := make([]uuid.UUID, n)
 	batch := &pgx.Batch{}
 	for i := range n {
@@ -74,7 +74,7 @@ func seedAccounts(ctx context.Context, pool *pgxpool.Pool, userIds []uuid.UUID, 
 	return accountIds, nil
 }
 
-func seedUsers(ctx context.Context, pool *pgxpool.Pool, n int, now int64) ([]uuid.UUID, error) {
+func seedUsers(ctx context.Context, pool *pgxpool.Pool, n int, now time.Time) ([]uuid.UUID, error) {
 	userIds := make([]uuid.UUID, n)
 	batch := &pgx.Batch{}
 	for i := range n {
@@ -124,9 +124,9 @@ func main() {
 	os.Remove("data/account_ids.csv")
 
 	fmt.Println("Seeding sample data...")
-	userIds, err := seedUsers(ctx, pool, 100, time.Now().UnixMilli())
-
-	accountIds, err := seedAccounts(ctx, pool, userIds, 250, time.Now().UnixMilli())
+	userIds, err := seedUsers(ctx, pool, 100, time.Now())
+	check(err)
+	accountIds, err := seedAccounts(ctx, pool, userIds, 250, time.Now())
 	check(err)
 
 	// err = seedTransactions(ctx, pool, accountIds, 1000000, time.Now().UnixMilli())
