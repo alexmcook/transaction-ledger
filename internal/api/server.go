@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/pprof"
 )
 
 type Server struct {
@@ -14,7 +15,11 @@ type Server struct {
 }
 
 func NewServer(log *slog.Logger, store StoreRegistry) *Server {
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		AppName: "Transaction Ledger",
+	})
+
+	app.Use(pprof.New())
 
 	s := &Server{
 		log:   log,
