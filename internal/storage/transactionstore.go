@@ -3,6 +3,8 @@ package storage
 import (
 	"context"
 	"errors"
+	"fmt"
+	"time"
 
 	"github.com/alexmcook/transaction-ledger/internal/api"
 	"github.com/alexmcook/transaction-ledger/internal/model"
@@ -16,9 +18,15 @@ type TransactionStore struct {
 	partitionProvder PartitionProvider
 }
 
-func (ts *TransactionStore) CreateTransaction(ctx context.Context, params api.CreateTransactionParams) error {
-	const createTransactionQuery = `INSERT INTO transactions (id, account_id, amount, transaction_type, created_at, partition_key) VALUES ($1, $2, $3, $4, $5, $6)`
-	_, err := ts.pool.Exec(ctx, createTransactionQuery, params.ID, params.AccountID, params.Amount, params.TransactionType, params.CreatedAt, ts.partitionProvder.GetActivePartition())
+func (ts *TransactionStore) CreateTransaction(ctx context.Context, tx api.CreateTransactionRequest) error {
+	uid, err := uuid.NewV7()
+	if err != nil {
+		return err
+	}
+
+	activePartition := ts.partitionProvder.GetActivePartition()
+	createTransactionQuery := fmt.Sprintf(`INSERT INTO transactions_p%d (id, account_id, amount, transaction_type, created_at, partition_key) VALUES ($1, $2, $3, $4, $5, $6)`, activePartition)
+	_, err = ts.pool.Exec(ctx, createTransactionQuery, uid, tx.AccountID, tx.Amount, tx.TransactionType, time.Now(), activePartition)
 	return err
 }
 
@@ -40,24 +48,27 @@ func (ts *TransactionStore) GetTransaction(ctx context.Context, id uuid.UUID) (*
 	return &tx, nil
 }
 
-func (ts *TransactionStore) CreateBatchTransaction(ctx context.Context, txs []model.Transaction) (int64, error) {
+func (ts *TransactionStore) CreateBatchTransaction(ctx context.Context, txs []api.CreateTransactionRequest) (int, error) {
 	if len(txs) == 0 {
 		return 0, nil
 	}
 
+	activePartition := ts.partitionProvder.GetActivePartition()
 	source := &TransactionCopySource{
 		rows:         txs,
 		pos:          0,
 		buf:          make([]any, 6),
-		partitionKey: ts.partitionProvder.GetActivePartition(),
+		now:          time.Now(),
+		partitionKey: activePartition,
 	}
 
+	partitionStr := fmt.Sprintf("transactions_p%d", activePartition)
 	count, err := ts.pool.CopyFrom(
 		ctx,
-		pgx.Identifier{"transactions"},
-		[]string{"id", "account_id", "amount", "transaction_type", "created_at", "bucket_id"},
+		pgx.Identifier{partitionStr},
+		[]string{"id", "account_id", "amount", "transaction_type", "created_at", "partition_key"},
 		source,
 	)
 
-	return count, err
+	return int(count), err
 }

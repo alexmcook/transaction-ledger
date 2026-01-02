@@ -43,6 +43,10 @@ type TransactionResponse struct {
 	CreatedAt       time.Time `json:"created_at"`
 }
 
+type SingleTransactionResponse struct {
+	CreatedCount int `json:"created_count"`
+}
+
 type BatchTransactionResponse struct {
 	CreatedCount int `json:"created_count"`
 }
@@ -65,7 +69,8 @@ type AccountStore interface {
 
 type TransactionStore interface {
 	GetTransaction(ctx context.Context, id uuid.UUID) (*model.Transaction, error)
-	CreateTransaction(ctx context.Context, params CreateTransactionParams) error
+	CreateTransaction(ctx context.Context, tx CreateTransactionRequest) error
+	CreateBatchTransaction(ctx context.Context, txs []CreateTransactionRequest) (int, error)
 }
 
 type CreateUserParams struct {

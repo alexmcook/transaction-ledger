@@ -2,7 +2,6 @@ package api
 
 import (
 	"log/slog"
-	"time"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -38,12 +37,6 @@ func (s *Server) handleGetTransaction(c fiber.Ctx) error {
 }
 
 func (s *Server) handleCreateTransaction(c fiber.Ctx) error {
-	id, ok := s.makeUUID(c)
-	if !ok {
-		return nil // makeUUID already handled the error response
-	}
-	now := time.Now()
-
 	var req CreateTransactionRequest
 	if err := c.Bind().JSON(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{
@@ -51,26 +44,16 @@ func (s *Server) handleCreateTransaction(c fiber.Ctx) error {
 		})
 	}
 
-	err := s.store.Transactions().CreateTransaction(c.Context(), CreateTransactionParams{
-		ID:              id,
-		AccountID:       req.AccountID,
-		Amount:          req.Amount,
-		TransactionType: req.TransactionType,
-		CreatedAt:       now,
-	})
+	err := s.store.Transactions().CreateTransaction(c.Context(), req)
 	if err != nil {
-		s.log.ErrorContext(c.Context(), "Failed to create transaction", slog.Any("id", id), slog.Any("error", err))
+		s.log.ErrorContext(c.Context(), "Failed to create transaction", slog.Any("account_id", req.AccountID), slog.Any("error", err))
 		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
 			Message: "Failed to create transaction",
 		})
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(TransactionResponse{
-		ID:              id,
-		AccountID:       req.AccountID,
-		Amount:          req.Amount,
-		TransactionType: req.TransactionType,
-		CreatedAt:       now,
+	return c.Status(fiber.StatusCreated).JSON(SingleTransactionResponse{
+		CreatedCount: 1,
 	})
 }
 
@@ -82,7 +65,15 @@ func (s *Server) handleCreateBatchTransaction(c fiber.Ctx) error {
 		})
 	}
 
+	count, err := s.store.Transactions().CreateBatchTransaction(c.Context(), req)
+	if err != nil {
+		s.log.ErrorContext(c.Context(), "Failed to create batch transactions", slog.Any("error", err))
+		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
+			Message: "Failed to create batch transactions",
+		})
+	}
+
 	return c.Status(fiber.StatusCreated).JSON(BatchTransactionResponse{
-		CreatedCount: len(req),
+		CreatedCount: count,
 	})
 }
