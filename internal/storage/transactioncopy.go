@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"time"
 
+	pb "github.com/alexmcook/transaction-ledger/api/proto/v1"
 	"github.com/alexmcook/transaction-ledger/internal/api"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -73,6 +74,41 @@ func (s *TransactionCopySource) EncodeRowBinary(buf []byte, tx *api.CreateTransa
 	// Column 2: account_id (UUID)
 	buf = binary.BigEndian.AppendUint32(buf, 16)
 	buf = append(buf, tx.AccountID[:]...)
+
+	// Column 3: amount (INT8)
+	buf = binary.BigEndian.AppendUint32(buf, 8)
+	buf = binary.BigEndian.AppendUint64(buf, uint64(tx.Amount))
+
+	// Column 4: transaction_type (INT2)
+	buf = binary.BigEndian.AppendUint32(buf, 2)
+	buf = binary.BigEndian.AppendUint16(buf, uint16(tx.TransactionType))
+
+	// Column 5: created_at (TIMESTAMPTZ)
+	buf = binary.BigEndian.AppendUint32(buf, 8)
+	buf = binary.BigEndian.AppendUint64(buf, uint64(s.rawTime))
+
+	// Column 6: partition_key (INT2)
+	buf = binary.BigEndian.AppendUint32(buf, 2)
+	buf = binary.BigEndian.AppendUint16(buf, uint16(s.partitionKey))
+
+	return buf
+}
+
+func (s *TransactionCopySource) EncodeRowProtoBinary(buf []byte, tx *pb.CreateTransactionRequest) []byte {
+	// Generate a new UUID based on baseUUID and seed
+	s.seed++
+	binary.BigEndian.PutUint32(s.baseUUID[12:], s.seed)
+
+	// Number of columns
+	buf = binary.BigEndian.AppendUint16(buf, 6)
+
+	// Column 1: id (UUID)
+	buf = binary.BigEndian.AppendUint32(buf, 16)
+	buf = append(buf, s.baseUUID[:]...)
+
+	// Column 2: account_id (UUID)
+	buf = binary.BigEndian.AppendUint32(buf, 16)
+	buf = append(buf, tx.AccountId[:]...)
 
 	// Column 3: amount (INT8)
 	buf = binary.BigEndian.AppendUint32(buf, 8)

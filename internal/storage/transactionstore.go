@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	pb "github.com/alexmcook/transaction-ledger/api/proto/v1"
 	"github.com/alexmcook/transaction-ledger/internal/api"
 	"github.com/alexmcook/transaction-ledger/internal/model"
 	"github.com/google/uuid"
@@ -132,6 +133,48 @@ func (ts *TransactionStore) CreateBinaryBatchTransaction(ctx context.Context, tx
 
 	for i := range txs {
 		buf = source.EncodeRowBinary(buf, &txs[i])
+	}
+
+	buf = binary.BigEndian.AppendUint16(buf, 0xffff) // End of copy marker
+
+	conn, err := ts.pool.Acquire(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer conn.Release()
+
+	rawConn := conn.Conn().PgConn()
+	_, err = rawConn.CopyFrom(ctx, bytes.NewReader(buf), fmt.Sprintf("COPY transactions_p%d FROM STDIN WITH (FORMAT BINARY)", activePartition))
+
+	return len(txs), err
+}
+
+func (ts *TransactionStore) CreateProtoBinaryBatchTransaction(ctx context.Context, batch *pb.TransactionBatch) (int, error) {
+	txs := batch.GetTransactions()
+	if len(txs) == 0 {
+		return 0, nil
+	}
+
+	buf := make([]byte, 0, 15+(len(txs)*54)+2) // Preallocate buffer
+	buf = append(buf, "PGCOPY\n\xff\r\n\x00"...)
+	buf = binary.BigEndian.AppendUint32(buf, 0) // Flags
+	buf = binary.BigEndian.AppendUint32(buf, 0) // Header extension area size
+
+	activePartition := ts.partitionProvder.GetActivePartition()
+	source := sourcePool.Get().(*TransactionCopySource)
+
+	now := time.Now()
+	source.rawTime = (now.Unix()-946684800)*1e6 + int64(now.Nanosecond()/1e3) // Microseconds since 2000-01-01
+	source.partitionKey = activePartition
+	uid, _ := uuid.NewV7()
+	source.baseUUID = uid
+	source.seed = rand.Uint32()
+	defer func() {
+		sourcePool.Put(source)
+	}()
+
+	for _, tx := range txs {
+		buf = source.EncodeRowProtoBinary(buf, tx)
 	}
 
 	buf = binary.BigEndian.AppendUint16(buf, 0xffff) // End of copy marker

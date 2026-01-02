@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	pb "github.com/alexmcook/transaction-ledger/api/proto/v1"
 	"github.com/alexmcook/transaction-ledger/internal/model"
 	"github.com/google/uuid"
 )
@@ -72,6 +73,7 @@ type TransactionStore interface {
 	CreateTransaction(ctx context.Context, tx CreateTransactionRequest) error
 	CreateBatchTransaction(ctx context.Context, txs []CreateTransactionRequest) (int, error)
 	CreateBinaryBatchTransaction(ctx context.Context, txs []CreateTransactionRequest) (int, error)
+	CreateProtoBinaryBatchTransaction(ctx context.Context, batch *pb.TransactionBatch) (int, error)
 }
 
 type CreateUserParams struct {
