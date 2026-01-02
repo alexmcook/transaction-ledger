@@ -38,9 +38,9 @@ func (s *Server) handleGetUser(c fiber.Ctx) error {
 }
 
 func (s *Server) handleCreateUser(c fiber.Ctx) error {
-	id, ok := s.parseUUID(c, "id")
+	id, ok := s.makeUUID(c)
 	if !ok {
-		return nil // parseUUID already handled the error response
+		return nil // makeUUID already handled the error response
 	}
 
 	now := time.Now()
