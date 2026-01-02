@@ -54,13 +54,7 @@ func (ts *TransactionStore) CreateBatchTransaction(ctx context.Context, txs []ap
 	}
 
 	activePartition := ts.partitionProvder.GetActivePartition()
-	source := &TransactionCopySource{
-		rows:         txs,
-		pos:          0,
-		buf:          make([]any, 6),
-		now:          time.Now(),
-		partitionKey: activePartition,
-	}
+	source := NewTransactionCopySource(txs, activePartition)
 
 	partitionStr := fmt.Sprintf("transactions_p%d", activePartition)
 	count, err := ts.pool.CopyFrom(
