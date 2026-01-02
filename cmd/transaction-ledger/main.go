@@ -23,8 +23,7 @@ func main() {
 	log.Info("Starting Transaction Ledger API Server")
 
 	if err := godotenv.Load(); err != nil {
-		log.Error("No .env file found")
-		os.Exit(1)
+		log.Warn("No .env file found")
 	}
 
 	dbUrl, ok := os.LookupEnv("DATABASE_URL")
