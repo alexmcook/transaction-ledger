@@ -19,9 +19,9 @@ type Account struct {
 }
 
 type Transaction struct {
-	ID        uuid.UUID `json:"id" db:"id"`
-	AccountID uuid.UUID `json:"account_id" db:"account_id"`
-	Amount    int64     `json:"amount" db:"amount"`
-	Type      int8      `json:"type" db:"type"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	ID              uuid.UUID `json:"id" db:"id"`
+	AccountID       uuid.UUID `json:"account_id" db:"account_id"`
+	Amount          int64     `json:"amount" db:"amount"`
+	TransactionType int8      `json:"transaction_type" db:"type"`
+	CreatedAt       time.Time `json:"created_at" db:"created_at"`
 }

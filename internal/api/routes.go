@@ -12,14 +12,15 @@ func (s *Server) handleHealth(c fiber.Ctx) error {
 }
 
 func (s *Server) handleGetUser(c fiber.Ctx) error {
-	id, ok := s.parseUUID(c, "id")
+	idStr := c.Params("id")
+	id, ok := s.parseUUID(c, idStr)
 	if !ok {
 		return nil // parseUUID already handled the error response
 	}
 
 	user, err := s.store.Users().GetUser(c.Context(), id)
 	if err != nil {
-		s.log.ErrorContext(c.Context(), "Failed to retrieve user", slog.Any("id", id), slog.Any("error", err))
+		s.log.ErrorContext(c.Context(), "Failed to retrieve user", slog.String("id", idStr), slog.Any("error", err))
 		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
 			Message: "Failed to retrieve user",
 		})
@@ -62,14 +63,15 @@ func (s *Server) handleCreateUser(c fiber.Ctx) error {
 }
 
 func (s *Server) handleGetAccount(c fiber.Ctx) error {
-	id, ok := s.parseUUID(c, "id")
+	idStr := c.Params("id")
+	id, ok := s.parseUUID(c, idStr)
 	if !ok {
 		return nil // parseUUID already handled the error response
 	}
 
 	account, err := s.store.Accounts().GetAccount(c.Context(), id)
 	if err != nil {
-		s.log.ErrorContext(c.Context(), "Failed to retrieve account", slog.Any("id", id), slog.Any("error", err))
+		s.log.ErrorContext(c.Context(), "Failed to retrieve account", slog.String("id", idStr), slog.Any("error", err))
 		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
 			Message: "Failed to retrieve account",
 		})
@@ -90,9 +92,9 @@ func (s *Server) handleGetAccount(c fiber.Ctx) error {
 }
 
 func (s *Server) handleCreateAccount(c fiber.Ctx) error {
-	id, ok := s.parseUUID(c, "id")
+	id, ok := s.makeUUID(c)
 	if !ok {
-		return nil // parseUUID already handled the error response
+		return nil // makeUUID already handled the error response
 	}
 	now := time.Now()
 
@@ -125,14 +127,15 @@ func (s *Server) handleCreateAccount(c fiber.Ctx) error {
 }
 
 func (s *Server) handleGetTransaction(c fiber.Ctx) error {
-	id, ok := s.parseUUID(c, "id")
+	idStr := c.Params("id")
+	id, ok := s.parseUUID(c, idStr)
 	if !ok {
 		return nil // parseUUID already handled the error response
 	}
 
 	transaction, err := s.store.Transactions().GetTransaction(c.Context(), id)
 	if err != nil {
-		s.log.ErrorContext(c.Context(), "Failed to retrieve transaction", slog.Any("id", id), slog.Any("error", err))
+		s.log.ErrorContext(c.Context(), "Failed to retrieve transaction", slog.String("id", idStr), slog.Any("error", err))
 		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
 			Message: "Failed to retrieve transaction",
 		})
@@ -145,18 +148,18 @@ func (s *Server) handleGetTransaction(c fiber.Ctx) error {
 	}
 
 	return c.JSON(TransactionResponse{
-		ID:        transaction.ID,
-		AccountID: transaction.AccountID,
-		Amount:    transaction.Amount,
-		Type:      transaction.Type,
-		CreatedAt: transaction.CreatedAt,
+		ID:              transaction.ID,
+		AccountID:       transaction.AccountID,
+		Amount:          transaction.Amount,
+		TransactionType: transaction.TransactionType,
+		CreatedAt:       transaction.CreatedAt,
 	})
 }
 
 func (s *Server) handleCreateTransaction(c fiber.Ctx) error {
-	id, ok := s.parseUUID(c, "id")
+	id, ok := s.makeUUID(c)
 	if !ok {
-		return nil // parseUUID already handled the error response
+		return nil // makeUUID already handled the error response
 	}
 	now := time.Now()
 
@@ -168,11 +171,11 @@ func (s *Server) handleCreateTransaction(c fiber.Ctx) error {
 	}
 
 	err := s.store.Transactions().CreateTransaction(c.Context(), CreateTransactionParams{
-		ID:        id,
-		AccountID: req.AccountID,
-		Amount:    req.Amount,
-		Type:      req.Type,
-		CreatedAt: now,
+		ID:              id,
+		AccountID:       req.AccountID,
+		Amount:          req.Amount,
+		TransactionType: req.TransactionType,
+		CreatedAt:       now,
 	})
 	if err != nil {
 		s.log.ErrorContext(c.Context(), "Failed to create transaction", slog.Any("id", id), slog.Any("error", err))
@@ -182,10 +185,10 @@ func (s *Server) handleCreateTransaction(c fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(TransactionResponse{
-		ID:        id,
-		AccountID: req.AccountID,
-		Amount:    req.Amount,
-		Type:      req.Type,
-		CreatedAt: now,
+		ID:              id,
+		AccountID:       req.AccountID,
+		Amount:          req.Amount,
+		TransactionType: req.TransactionType,
+		CreatedAt:       now,
 	})
 }

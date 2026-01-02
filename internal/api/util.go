@@ -7,19 +7,17 @@ import (
 	"github.com/google/uuid"
 )
 
-func (s *Server) parseUUID(c fiber.Ctx, param string) (uuid.UUID, bool) {
-	id := c.Params(param)
-
-	uid, err := uuid.Parse(id)
+func (s *Server) parseUUID(c fiber.Ctx, idStr string) (uuid.UUID, bool) {
+	id, err := uuid.Parse(idStr)
 	if err != nil {
-		s.log.WarnContext(c.Context(), "Invalid UUID format", slog.String("id", id))
+		s.log.WarnContext(c.Context(), "Invalid UUID format", slog.String("id", idStr))
 		c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{
 			Message: "Invalid UUID format",
 		})
 		return uuid.Nil, false
 	}
 
-	return uid, true
+	return id, true
 }
 
 func (s *Server) makeUUID(c fiber.Ctx) (uuid.UUID, bool) {

@@ -22,7 +22,7 @@ func (s *TransactionCopySource) Values() ([]any, error) {
 	s.buf[0] = tx.ID
 	s.buf[1] = tx.AccountID
 	s.buf[2] = tx.Amount
-	s.buf[3] = tx.Type
+	s.buf[3] = tx.TransactionType
 	s.buf[4] = tx.CreatedAt
 	s.buf[5] = s.partitionKey
 	return s.buf, nil

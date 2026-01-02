@@ -17,13 +17,13 @@ type TransactionStore struct {
 }
 
 func (ts *TransactionStore) CreateTransaction(ctx context.Context, params api.CreateTransactionParams) error {
-	const createTransactionQuery = `INSERT INTO transactions (id, account_id, amount, type, created_at) VALUES ($1, $2, $3, $4, $5, $6)`
-	_, err := ts.pool.Exec(ctx, createTransactionQuery, params.ID, params.AccountID, params.Amount, params.Type, params.CreatedAt, ts.partitionProvder.GetActivePartition())
+	const createTransactionQuery = `INSERT INTO transactions (id, account_id, amount, transaction_type, created_at, partition_key) VALUES ($1, $2, $3, $4, $5, $6)`
+	_, err := ts.pool.Exec(ctx, createTransactionQuery, params.ID, params.AccountID, params.Amount, params.TransactionType, params.CreatedAt, ts.partitionProvder.GetActivePartition())
 	return err
 }
 
 func (ts *TransactionStore) GetTransaction(ctx context.Context, id uuid.UUID) (*model.Transaction, error) {
-	const getTransactionQuery = `SELECT id, account_id, amount, type, created_at FROM transactions WHERE id = $1`
+	const getTransactionQuery = `SELECT id, account_id, amount, transaction_type, created_at FROM transactions WHERE id = $1`
 	rows, err := ts.pool.Query(ctx, getTransactionQuery, id)
 	if err != nil {
 		return nil, err
@@ -55,7 +55,7 @@ func (ts *TransactionStore) CreateBatchTransaction(ctx context.Context, txs []mo
 	count, err := ts.pool.CopyFrom(
 		ctx,
 		pgx.Identifier{"transactions"},
-		[]string{"id", "account_id", "amount", "type", "created_at", "bucket_id"},
+		[]string{"id", "account_id", "amount", "transaction_type", "created_at", "bucket_id"},
 		source,
 	)
 

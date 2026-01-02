@@ -30,17 +30,17 @@ type AccountResponse struct {
 }
 
 type CreateTransactionRequest struct {
-	AccountID uuid.UUID `json:"account_id"`
-	Type      int8      `json:"type"`
-	Amount    int64     `json:"amount"`
+	AccountID       uuid.UUID `json:"account_id"`
+	TransactionType int8      `json:"transaction_type"`
+	Amount          int64     `json:"amount"`
 }
 
 type TransactionResponse struct {
-	ID        uuid.UUID `json:"id"`
-	AccountID uuid.UUID `json:"account_id"`
-	Amount    int64     `json:"amount"`
-	Type      int8      `json:"type"`
-	CreatedAt time.Time `json:"created_at"`
+	ID              uuid.UUID `json:"id"`
+	AccountID       uuid.UUID `json:"account_id"`
+	Amount          int64     `json:"amount"`
+	TransactionType int8      `json:"transaction_type"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 type StoreRegistry interface {
@@ -77,9 +77,9 @@ type CreateAccountParams struct {
 }
 
 type CreateTransactionParams struct {
-	ID        uuid.UUID
-	AccountID uuid.UUID
-	Amount    int64
-	Type      int8
-	CreatedAt time.Time
+	ID              uuid.UUID
+	AccountID       uuid.UUID
+	Amount          int64
+	TransactionType int8
+	CreatedAt       time.Time
 }
