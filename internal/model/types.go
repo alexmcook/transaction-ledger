@@ -16,3 +16,11 @@ type Account struct {
 	Balance   int64     `json:"balance" db:"balance"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
+
+type Transaction struct {
+	ID        uuid.UUID `json:"id" db:"id"`
+	AccountID uuid.UUID `json:"account_id" db:"account_id"`
+	Amount    int64     `json:"amount" db:"amount"`
+	Type      int8      `json:"type" db:"type"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+}

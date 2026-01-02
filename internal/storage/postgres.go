@@ -6,9 +6,10 @@ import (
 )
 
 type PostgresStore struct {
-	pool         *pgxpool.Pool
-	userStore    *UserStore
-	accountStore *AccountStore
+	pool             *pgxpool.Pool
+	userStore        *UserStore
+	accountStore     *AccountStore
+	transactionStore *TransactionStore
 }
 
 func NewPostgresStore(pool *pgxpool.Pool) *PostgresStore {
@@ -29,4 +30,8 @@ func (ps *PostgresStore) Users() api.UserStore {
 
 func (ps *PostgresStore) Accounts() api.AccountStore {
 	return ps.accountStore
+}
+
+func (ps *PostgresStore) Transactions() api.TransactionStore {
+	return ps.transactionStore
 }

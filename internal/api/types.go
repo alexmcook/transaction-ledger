@@ -28,9 +28,24 @@ type AccountResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type CreateTransactionRequest struct {
+	AccountID uuid.UUID `json:"account_id"`
+	Type      int8      `json:"type"`
+	Amount    int64     `json:"amount"`
+}
+
+type TransactionResponse struct {
+	ID        uuid.UUID `json:"id"`
+	AccountID uuid.UUID `json:"account_id"`
+	Amount    int64     `json:"amount"`
+	Type      int8      `json:"type"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 type StoreRegistry interface {
 	Users() UserStore
 	Accounts() AccountStore
+	Transactions() TransactionStore
 }
 
 type UserStore interface {
@@ -43,6 +58,11 @@ type AccountStore interface {
 	CreateAccount(ctx context.Context, params CreateAccountParams) error
 }
 
+type TransactionStore interface {
+	GetTransaction(ctx context.Context, id uuid.UUID) (*model.Transaction, error)
+	CreateTransaction(ctx context.Context, params CreateTransactionParams) error
+}
+
 type CreateUserParams struct {
 	ID        uuid.UUID
 	CreatedAt time.Time
@@ -52,5 +72,13 @@ type CreateAccountParams struct {
 	ID        uuid.UUID
 	UserID    uuid.UUID
 	Balance   int64
+	CreatedAt time.Time
+}
+
+type CreateTransactionParams struct {
+	ID        uuid.UUID
+	AccountID uuid.UUID
+	Amount    int64
+	Type      int8
 	CreatedAt time.Time
 }

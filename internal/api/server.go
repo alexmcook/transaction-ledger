@@ -35,6 +35,9 @@ func (s *Server) registerRoutes() {
 
 	s.app.Get("/accounts/:id", s.handleGetAccount)
 	s.app.Post("/accounts", s.handleCreateAccount)
+
+	s.app.Get("/transactions/:id", s.handleGetTransaction)
+	s.app.Post("/transactions", s.handleCreateTransaction)
 }
 
 func (s *Server) Run() error {

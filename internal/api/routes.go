@@ -2,7 +2,6 @@ package api
 
 import (
 	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
 	"log/slog"
 	"time"
 )
@@ -12,18 +11,14 @@ func (s *Server) handleHealth(c fiber.Ctx) error {
 }
 
 func (s *Server) handleGetUser(c fiber.Ctx) error {
-	id := c.Params("id")
-	uid, err := uuid.Parse(id)
-	if err != nil {
-		s.log.ErrorContext(c.Context(), "Invalid UUID format", slog.String("id", id))
-		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{
-			Message: "Invalid UUID format",
-		})
+	id, ok := s.parseUUID(c, "id")
+	if !ok {
+		return nil // parseUUID already handled the error response
 	}
 
-	user, err := s.store.Users().GetUser(c.Context(), uid)
+	user, err := s.store.Users().GetUser(c.Context(), id)
 	if err != nil {
-		s.log.ErrorContext(c.Context(), "Failed to retrieve user", slog.String("id", id), slog.Any("error", err))
+		s.log.ErrorContext(c.Context(), "Failed to retrieve user", slog.Any("id", id), slog.Any("error", err))
 		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
 			Message: "Failed to retrieve user",
 		})
@@ -42,21 +37,18 @@ func (s *Server) handleGetUser(c fiber.Ctx) error {
 }
 
 func (s *Server) handleCreateUser(c fiber.Ctx) error {
-	id, err := uuid.NewV7()
-	if err != nil {
-		s.log.ErrorContext(c.Context(), "Failed to generate UUID", slog.Any("error", err))
-		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
-			Message: "Failed to generate UUID",
-		})
+	id, ok := s.parseUUID(c, "id")
+	if !ok {
+		return nil // parseUUID already handled the error response
 	}
 
 	now := time.Now()
-	err = s.store.Users().CreateUser(c.Context(), CreateUserParams{
+	err := s.store.Users().CreateUser(c.Context(), CreateUserParams{
 		ID:        id,
 		CreatedAt: now,
 	})
 	if err != nil {
-		s.log.ErrorContext(c.Context(), "Failed to create user", slog.String("id", id.String()), slog.Any("error", err))
+		s.log.ErrorContext(c.Context(), "Failed to create user", slog.Any("id", id), slog.Any("error", err))
 		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
 			Message: "Failed to create user",
 		})
@@ -69,18 +61,14 @@ func (s *Server) handleCreateUser(c fiber.Ctx) error {
 }
 
 func (s *Server) handleGetAccount(c fiber.Ctx) error {
-	id := c.Params("id")
-	uid, err := uuid.Parse(id)
-	if err != nil {
-		s.log.ErrorContext(c.Context(), "Invalid UUID format", slog.String("id", id))
-		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{
-			Message: "Invalid UUID format",
-		})
+	id, ok := s.parseUUID(c, "id")
+	if !ok {
+		return nil // parseUUID already handled the error response
 	}
 
-	account, err := s.store.Accounts().GetAccount(c.Context(), uid)
+	account, err := s.store.Accounts().GetAccount(c.Context(), id)
 	if err != nil {
-		s.log.ErrorContext(c.Context(), "Failed to retrieve account", slog.String("id", id), slog.Any("error", err))
+		s.log.ErrorContext(c.Context(), "Failed to retrieve account", slog.Any("id", id), slog.Any("error", err))
 		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
 			Message: "Failed to retrieve account",
 		})
@@ -101,12 +89,9 @@ func (s *Server) handleGetAccount(c fiber.Ctx) error {
 }
 
 func (s *Server) handleCreateAccount(c fiber.Ctx) error {
-	id, err := uuid.NewV7()
-	if err != nil {
-		s.log.ErrorContext(c.Context(), "Failed to generate UUID", slog.Any("error", err))
-		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
-			Message: "Failed to generate UUID",
-		})
+	id, ok := s.parseUUID(c, "id")
+	if !ok {
+		return nil // parseUUID already handled the error response
 	}
 	now := time.Now()
 
@@ -117,14 +102,14 @@ func (s *Server) handleCreateAccount(c fiber.Ctx) error {
 		})
 	}
 
-	err = s.store.Accounts().CreateAccount(c.Context(), CreateAccountParams{
+	err := s.store.Accounts().CreateAccount(c.Context(), CreateAccountParams{
 		ID:        id,
 		UserID:    req.UserID,
 		Balance:   req.Balance,
 		CreatedAt: now,
 	})
 	if err != nil {
-		s.log.ErrorContext(c.Context(), "Failed to create account", slog.String("id", id.String()), slog.Any("error", err))
+		s.log.ErrorContext(c.Context(), "Failed to create account", slog.Any("id", id), slog.Any("error", err))
 		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
 			Message: "Failed to create account",
 		})
@@ -134,6 +119,72 @@ func (s *Server) handleCreateAccount(c fiber.Ctx) error {
 		ID:        id,
 		UserID:    req.UserID,
 		Balance:   req.Balance,
+		CreatedAt: now,
+	})
+}
+
+func (s *Server) handleGetTransaction(c fiber.Ctx) error {
+	id, ok := s.parseUUID(c, "id")
+	if !ok {
+		return nil // parseUUID already handled the error response
+	}
+
+	transaction, err := s.store.Transactions().GetTransaction(c.Context(), id)
+	if err != nil {
+		s.log.ErrorContext(c.Context(), "Failed to retrieve transaction", slog.Any("id", id), slog.Any("error", err))
+		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
+			Message: "Failed to retrieve transaction",
+		})
+	}
+
+	if transaction == nil {
+		return c.Status(fiber.StatusNotFound).JSON(ErrorResponse{
+			Message: "Transaction not found",
+		})
+	}
+
+	return c.JSON(TransactionResponse{
+		ID:        transaction.ID,
+		AccountID: transaction.AccountID,
+		Amount:    transaction.Amount,
+		Type:      transaction.Type,
+		CreatedAt: transaction.CreatedAt,
+	})
+}
+
+func (s *Server) handleCreateTransaction(c fiber.Ctx) error {
+	id, ok := s.parseUUID(c, "id")
+	if !ok {
+		return nil // parseUUID already handled the error response
+	}
+	now := time.Now()
+
+	var req CreateTransactionRequest
+	if err := c.Bind().JSON(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{
+			Message: "Invalid request body",
+		})
+	}
+
+	err := s.store.Transactions().CreateTransaction(c.Context(), CreateTransactionParams{
+		ID:        id,
+		AccountID: req.AccountID,
+		Amount:    req.Amount,
+		Type:      req.Type,
+		CreatedAt: now,
+	})
+	if err != nil {
+		s.log.ErrorContext(c.Context(), "Failed to create transaction", slog.Any("id", id), slog.Any("error", err))
+		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
+			Message: "Failed to create transaction",
+		})
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(TransactionResponse{
+		ID:        id,
+		AccountID: req.AccountID,
+		Amount:    req.Amount,
+		Type:      req.Type,
 		CreatedAt: now,
 	})
 }
