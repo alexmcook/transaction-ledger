@@ -5,6 +5,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+type PartitionProvider interface {
+	GetActivePartition() int16
+}
+
 type PostgresStore struct {
 	pool             *pgxpool.Pool
 	userStore        *UserStore
@@ -12,11 +16,12 @@ type PostgresStore struct {
 	transactionStore *TransactionStore
 }
 
-func NewPostgresStore(pool *pgxpool.Pool) *PostgresStore {
+func NewPostgresStore(pool *pgxpool.Pool, pp PartitionProvider) *PostgresStore {
 	return &PostgresStore{
-		pool:         pool,
-		userStore:    &UserStore{pool: pool},
-		accountStore: &AccountStore{pool: pool},
+		pool:             pool,
+		userStore:        &UserStore{pool: pool},
+		accountStore:     &AccountStore{pool: pool},
+		transactionStore: &TransactionStore{pool: pool, partitionProvder: pp},
 	}
 }
 

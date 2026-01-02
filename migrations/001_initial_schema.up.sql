@@ -25,15 +25,16 @@ CREATE TABLE IF NOT EXISTS transactions (
   amount BIGINT NOT NULL,
   transaction_type SMALLINT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL,
-  bucket_id SMALLINT NOT NULL
-) PARTITION BY LIST (bucket_id);
+  partition_key SMALLINT NOT NULL
+) PARTITION BY LIST (partition_key);
 
 -- Create two partitions for write-behind worker to efficiently prune transactions
-CREATE TABLE IF NOT EXISTS tx_buf_0 PARTITION OF transactions FOR VALUES IN (0);
-CREATE TABLE IF NOT EXISTS tx_buf_1 PARTITION OF transactions FOR VALUES IN (1);
+CREATE TABLE IF NOT EXISTS transactions_p0 PARTITION OF transactions FOR VALUES IN (0);
+CREATE TABLE IF NOT EXISTS transactions_p1 PARTITION OF transactions FOR VALUES IN (1);
 
--- Default partition to catch bad bucket_id values
-CREATE TABLE IF NOT EXISTS tx_default PARTITION OF transactions DEFAULT;
+-- Default partition to catch bad partition_key values
+CREATE TABLE IF NOT EXISTS transactions_default PARTITION OF transactions DEFAULT;
 
--- Index on account_id for faster lookups
-CREATE INDEX IF NOT EXISTS idx_transactions_account_id ON transactions(account_id);
+-- Index on account_id for faster lookups by worker
+CREATE INDEX IF NOT EXISTS idx_transactions_p0_worker ON transactions_p0 (account_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_p1_worker ON transactions_p1 (account_id);
