@@ -1,9 +1,10 @@
 package api
 
 import (
-	"github.com/gofiber/fiber/v3"
 	"log/slog"
 	"time"
+
+	"github.com/gofiber/fiber/v3"
 )
 
 func (s *Server) handleHealth(c fiber.Ctx) error {

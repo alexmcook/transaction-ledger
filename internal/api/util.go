@@ -1,9 +1,10 @@
 package api
 
 import (
+	"log/slog"
+
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
-	"log/slog"
 )
 
 func (s *Server) parseUUID(c fiber.Ctx, param string) (uuid.UUID, bool) {

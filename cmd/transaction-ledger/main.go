@@ -2,16 +2,17 @@ package main
 
 import (
 	"context"
-	"github.com/alexmcook/transaction-ledger/internal/api"
-	"github.com/alexmcook/transaction-ledger/internal/logger"
-	"github.com/alexmcook/transaction-ledger/internal/storage"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/joho/godotenv"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/alexmcook/transaction-ledger/internal/api"
+	"github.com/alexmcook/transaction-ledger/internal/logger"
+	"github.com/alexmcook/transaction-ledger/internal/storage"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -44,7 +45,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	store := storage.NewPostgresStore(pool)
+	pm := storage.NewPartitionManager(log, pool)
+	pm.StartRotationWorker(ctx, 10*time.Second)
+
+	store := storage.NewPostgresStore(log, pool, pm)
 	server := api.NewServer(log, store)
 
 	go func() {

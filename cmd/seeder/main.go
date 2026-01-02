@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"math/rand"
+	"os"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
-	"math/rand"
-	"os"
-	"time"
 )
 
 func exportIDsToCSV(ids []uuid.UUID, filename string) error {

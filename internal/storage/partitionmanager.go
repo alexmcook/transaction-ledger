@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -16,9 +17,10 @@ type PartitionManager struct {
 	activePartition int32
 }
 
-func NewPartitionManager(log *slog.Logger) *PartitionManager {
+func NewPartitionManager(log *slog.Logger, pool *pgxpool.Pool) *PartitionManager {
 	return &PartitionManager{
-		log: log,
+		log:  log,
+		pool: pool,
 	}
 }
 
@@ -34,21 +36,21 @@ func (pm *PartitionManager) switchPartition() {
 	}
 }
 
-func (pm *PartitionManager) StartRotationWorker(ctx context.Context, pool *pgxpool.Pool, interval time.Duration) {
+func (pm *PartitionManager) StartRotationWorker(ctx context.Context, interval time.Duration) {
 	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
 
 	timeout := interval / 2
 
 	go func() {
+		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
 				opCtx, cancel := context.WithTimeout(context.Background(), timeout)
-				defer cancel()
 				pm.rotateAndProcess(opCtx)
+				cancel()
 			case <-ctx.Done():
-				pm.log.Info("Partition rotation worker stopping")
+				pm.log.InfoContext(ctx, "Partition rotation worker stopping")
 				return
 			}
 		}
@@ -58,7 +60,7 @@ func (pm *PartitionManager) StartRotationWorker(ctx context.Context, pool *pgxpo
 func (pm *PartitionManager) rotateAndProcess(ctx context.Context) {
 	partitionKey := pm.GetActivePartition()
 	pm.switchPartition()
-	pm.log.Info("Switched active partition", slog.Any("partition_key", partitionKey^1))
+	pm.log.InfoContext(ctx, "Switched active partition", slog.Any("partition_key", partitionKey^1))
 
 	// Wait for in flight transactions to complete
 	timer := time.NewTimer(1 * time.Second)
@@ -67,61 +69,52 @@ func (pm *PartitionManager) rotateAndProcess(ctx context.Context) {
 	select {
 	case <-timer.C:
 	case <-ctx.Done():
-		pm.log.Info("Partition processing cancelled before starting", slog.Any("partition_key", partitionKey))
+		pm.log.InfoContext(ctx, "Partition processing cancelled before starting", slog.Any("partition_key", partitionKey))
 		return
 	}
 
-	detachQuery := fmt.Sprintf(`ALTER TABLE transactions DETACH PARTITION transactions_p%d`, partitionKey)
-	_, err := pm.pool.Exec(ctx, detachQuery)
+	err := pgx.BeginFunc(ctx, pm.pool, func(tx pgx.Tx) error {
+		// Detach
+		// Locks parent table for duration of transaction, can optimize by detaching before and handling orphaned partitions on startup
+		detachQuery := fmt.Sprintf("ALTER TABLE transactions DETACH PARTITION transactions_p%d", partitionKey)
+		_, err := tx.Exec(ctx, detachQuery)
+		if err != nil {
+			return err
+		}
+
+		// Sum and update
+		updateQuery := fmt.Sprintf(`
+			UPDATE accounts a
+			SET balance = a.balance + sub.total_amount
+			FROM (
+				SELECT account_id, SUM(amount) AS total_amount
+				FROM transactions_p%d
+				GROUP BY account_id
+			) AS sub
+			WHERE a.id = sub.account_id
+		`, partitionKey)
+		_, err = tx.Exec(ctx, updateQuery)
+		if err != nil {
+			return err
+		}
+
+		// Truncate
+		truncateQuery := fmt.Sprintf("TRUNCATE TABLE transactions_p%d", partitionKey)
+		_, err = tx.Exec(ctx, truncateQuery)
+		if err != nil {
+			return err
+		}
+
+		// Reattach
+		reattachQuery := fmt.Sprintf("ALTER TABLE transactions ATTACH PARTITION transactions_p%d FOR VALUES IN (%d)", partitionKey, partitionKey)
+		_, err = tx.Exec(ctx, reattachQuery)
+		return err
+	})
+
 	if err != nil {
-		pm.log.Error("Failed to detach partition", slog.Any("partition_key", partitionKey), slog.String("error", err.Error()))
+		pm.log.ErrorContext(ctx, "Error processing partition", slog.Any("partition_key", partitionKey), slog.String("error", err.Error()))
 		return
 	}
 
-	tx, err := pm.pool.Begin(ctx)
-	if err != nil {
-		pm.log.Error("Failed to begin transaction for partition processing", slog.Any("partition_key", partitionKey), slog.String("error", err.Error()))
-		return
-	}
-	defer tx.Rollback(ctx)
-
-	sumQuery := fmt.Sprintf(`
-		UPDATE accounts
-		SET balance = balance + sub.total_amount
-		FROM (
-			SELECT account_id, SUM(amount) AS total_amount
-			FROM transactions_p%d
-			GROUP BY account_id
-		) AS sub
-		WHERE accounts.id = sub.account_id
-		`,
-		partitionKey,
-	)
-
-	_, err = tx.Exec(ctx, sumQuery)
-	if err != nil {
-		pm.log.Error("Failed to sum transactions and update account balances", slog.Any("partition_key", partitionKey), slog.String("error", err.Error()))
-		return
-	}
-
-	truncateQuery := fmt.Sprintf(`TRUNCATE TABLE transactions_p%d`, partitionKey)
-	_, err = tx.Exec(ctx, truncateQuery)
-	if err != nil {
-		pm.log.Error("Failed to truncate partition", slog.Any("partition_key", partitionKey), slog.String("error", err.Error()))
-		return
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		pm.log.Error("Failed to commit partition processing transaction", slog.Any("partition_key", partitionKey), slog.String("error", err.Error()))
-		return
-	}
-
-	attachQuery := fmt.Sprintf(`ALTER TABLE transactions ATTACH PARTITION transactions_p%d FOR VALUES IN (%d)`, partitionKey, partitionKey)
-	_, err = pm.pool.Exec(ctx, attachQuery)
-	if err != nil {
-		pm.log.Error("Failed to attach partition", slog.Any("partition_key", partitionKey), slog.String("error", err.Error()))
-		return
-	}
-
-	pm.log.Info("Successfully processed partition", slog.Any("partition_key", partitionKey))
+	pm.log.InfoContext(ctx, "Successfully processed partition", slog.Any("partition_key", partitionKey))
 }

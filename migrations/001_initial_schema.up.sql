@@ -32,9 +32,6 @@ CREATE TABLE IF NOT EXISTS transactions (
 CREATE TABLE IF NOT EXISTS transactions_p0 PARTITION OF transactions FOR VALUES IN (0);
 CREATE TABLE IF NOT EXISTS transactions_p1 PARTITION OF transactions FOR VALUES IN (1);
 
--- Default partition to catch bad partition_key values
-CREATE TABLE IF NOT EXISTS transactions_default PARTITION OF transactions DEFAULT;
-
 -- Index on account_id for faster lookups by worker
 CREATE INDEX IF NOT EXISTS idx_transactions_p0_worker ON transactions_p0 (account_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_p1_worker ON transactions_p1 (account_id);

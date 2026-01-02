@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"log/slog"
+
 	"github.com/alexmcook/transaction-ledger/internal/api"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -10,14 +12,16 @@ type PartitionProvider interface {
 }
 
 type PostgresStore struct {
+	log              *slog.Logger
 	pool             *pgxpool.Pool
 	userStore        *UserStore
 	accountStore     *AccountStore
 	transactionStore *TransactionStore
 }
 
-func NewPostgresStore(pool *pgxpool.Pool, pp PartitionProvider) *PostgresStore {
+func NewPostgresStore(log *slog.Logger, pool *pgxpool.Pool, pp PartitionProvider) *PostgresStore {
 	return &PostgresStore{
+		log:              log,
 		pool:             pool,
 		userStore:        &UserStore{pool: pool},
 		accountStore:     &AccountStore{pool: pool},
