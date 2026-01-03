@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -21,26 +22,34 @@ func main() {
 	log := logger.NewLogger()
 	log.Info("Starting Transaction Ledger API Server")
 
-	dbUrl, ok := os.LookupEnv("DATABASE_URL_S1")
-	if !ok {
-		log.Error("DATABASE_URL environment variable not set")
-		os.Exit(1)
+	numShards := 2
+	pools := make([]*pgxpool.Pool, numShards)
+
+	for i := range numShards {
+		dbUrlEnv := fmt.Sprintf("DATABASE_URL_S%d", i+1)
+		dbUrl, ok := os.LookupEnv(dbUrlEnv)
+		if !ok {
+			log.Error("Database URL not set", slog.String("env", dbUrlEnv))
+			os.Exit(1)
+		}
+
+		pool, err := pgxpool.New(ctx, dbUrl)
+		if err != nil {
+			log.Error("Failed to connect to database shard", slog.String("error", err.Error()))
+			os.Exit(1)
+		}
+		defer pool.Close()
+
+		pools[i] = pool
+
+		if err := pool.Ping(ctx); err != nil {
+			log.Error("Failed to ping database", slog.String("error", err.Error()))
+			os.Exit(1)
+		}
 	}
 
-	pool, err := pgxpool.New(ctx, dbUrl)
-	if err != nil {
-		log.Error("Failed to connect to database", slog.String("error", err.Error()))
-		os.Exit(1)
-	}
-	defer pool.Close()
-
-	if err := pool.Ping(ctx); err != nil {
-		log.Error("Failed to ping database", slog.String("error", err.Error()))
-		os.Exit(1)
-	}
-
-	store := storage.NewPostgresStore(log, pool)
-	server := api.NewServer(log, store)
+	shards := storage.NewShardedStore(log, pools)
+	server := api.NewServer(log, shards)
 
 	go func() {
 		if err := server.Run(); err != nil {

@@ -3,7 +3,6 @@ package storage
 import (
 	"log/slog"
 
-	"github.com/alexmcook/transaction-ledger/internal/api"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -27,10 +26,10 @@ func (ps *PostgresStore) Close() {
 	ps.pool.Close()
 }
 
-func (ps *PostgresStore) Accounts() api.AccountStore {
+func (ps *PostgresStore) Accounts() *AccountStore {
 	return ps.accountStore
 }
 
-func (ps *PostgresStore) Transactions() api.TransactionStore {
+func (ps *PostgresStore) Transactions() *TransactionStore {
 	return ps.transactionStore
 }

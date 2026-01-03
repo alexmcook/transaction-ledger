@@ -14,7 +14,6 @@ type ErrorResponse struct {
 
 type AccountResponse struct {
 	ID        uuid.UUID `json:"id"`
-	UserID    uuid.UUID `json:"user_id"`
 	Balance   int64     `json:"balance"`
 	CreatedAt time.Time `json:"created_at"`
 }
@@ -35,14 +34,6 @@ type BatchTransactionResponse struct {
 }
 
 type StoreRegistry interface {
-	Accounts() AccountStore
-	Transactions() TransactionStore
-}
-
-type AccountStore interface {
 	GetAccount(ctx context.Context, id uuid.UUID) (*model.Account, error)
-}
-
-type TransactionStore interface {
 	GetTransaction(ctx context.Context, id uuid.UUID) (*model.Transaction, error)
 }

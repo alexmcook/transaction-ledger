@@ -65,6 +65,7 @@ services:
   ### Redpanda
   ###
   redpanda:
+    profiles: ["broker"]
     image: docker.redpanda.com/redpandadata/redpanda:v25.3.4
     container_name: tl-redpanda
     command:
@@ -77,6 +78,7 @@ services:
       - "9092:9092"
 
   console:
+    profiles: ["broker"]
     image: docker.redpanda.com/redpandadata/console:v3.3.2
     container_name: tl-redpanda-console
     ports:
@@ -88,6 +90,7 @@ services:
   ### API Service
   ###
   api-s1:
+    profiles: ["api"]
     build:
       context: .
       dockerfile: Dockerfile
@@ -109,6 +112,7 @@ services:
       start_period: 10s
 
   api-s2:
+    profiles: ["api"]
     build:
       context: .
       dockerfile: Dockerfile
@@ -133,6 +137,7 @@ services:
   ### Nginx
   ###
   nginx:
+    profiles: ["api"]
     image: nginx:alpine
     container_name: tl-nginx
     restart: unless-stopped

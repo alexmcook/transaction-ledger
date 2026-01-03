@@ -17,7 +17,7 @@ func (s *Server) handleGetTransaction(c fiber.Ctx) error {
 		})
 	}
 
-	transaction, err := s.store.Transactions().GetTransaction(c.Context(), id)
+	transaction, err := s.store.GetTransaction(c.Context(), id)
 	if err != nil {
 		s.log.ErrorContext(c.Context(), "Failed to retrieve transaction", slog.String("id", idStr), slog.Any("error", err))
 		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{

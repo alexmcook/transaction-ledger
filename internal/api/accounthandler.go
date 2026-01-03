@@ -17,7 +17,7 @@ func (s *Server) handleGetAccount(c fiber.Ctx) error {
 		})
 	}
 
-	account, err := s.store.Accounts().GetAccount(c.Context(), id)
+	account, err := s.store.GetAccount(c.Context(), id)
 	if err != nil {
 		s.log.ErrorContext(c.Context(), "Failed to retrieve account", slog.String("id", idStr), slog.Any("error", err))
 		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
