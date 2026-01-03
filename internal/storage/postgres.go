@@ -7,34 +7,24 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type PartitionProvider interface {
-	GetActivePartition() int16
-}
-
 type PostgresStore struct {
 	log              *slog.Logger
 	pool             *pgxpool.Pool
-	userStore        *UserStore
 	accountStore     *AccountStore
 	transactionStore *TransactionStore
 }
 
-func NewPostgresStore(log *slog.Logger, pool *pgxpool.Pool, pp PartitionProvider) *PostgresStore {
+func NewPostgresStore(log *slog.Logger, pool *pgxpool.Pool) *PostgresStore {
 	return &PostgresStore{
 		log:              log,
 		pool:             pool,
-		userStore:        &UserStore{pool: pool},
 		accountStore:     &AccountStore{pool: pool},
-		transactionStore: &TransactionStore{pool: pool, partitionProvder: pp},
+		transactionStore: &TransactionStore{pool: pool},
 	}
 }
 
 func (ps *PostgresStore) Close() {
 	ps.pool.Close()
-}
-
-func (ps *PostgresStore) Users() api.UserStore {
-	return ps.userStore
 }
 
 func (ps *PostgresStore) Accounts() api.AccountStore {

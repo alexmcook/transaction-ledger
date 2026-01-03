@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/bytedance/sonic"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/pprof"
 )
@@ -16,11 +15,7 @@ type Server struct {
 }
 
 func NewServer(log *slog.Logger, store StoreRegistry) *Server {
-	app := fiber.New(fiber.Config{
-		JSONEncoder: sonic.Marshal,
-		JSONDecoder: sonic.Unmarshal,
-	})
-
+	app := fiber.New()
 	app.Use(pprof.New())
 
 	s := &Server{
@@ -30,7 +25,6 @@ func NewServer(log *slog.Logger, store StoreRegistry) *Server {
 	}
 
 	s.registerRoutes()
-
 	return s
 }
 

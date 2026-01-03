@@ -1,1 +1,1 @@
-DROP TABLE IF EXISTS users, accounts, transactions, transaction_types CASCADE;
+DROP TABLE IF EXISTS accounts, transactions, staging_0, staging_1;

@@ -12,7 +12,6 @@ import (
 	"github.com/alexmcook/transaction-ledger/internal/logger"
 	"github.com/alexmcook/transaction-ledger/internal/storage"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -22,11 +21,7 @@ func main() {
 	log := logger.NewLogger()
 	log.Info("Starting Transaction Ledger API Server")
 
-	if err := godotenv.Load(); err != nil {
-		log.Warn("No .env file found")
-	}
-
-	dbUrl, ok := os.LookupEnv("DATABASE_URL")
+	dbUrl, ok := os.LookupEnv("DATABASE_URL_S1")
 	if !ok {
 		log.Error("DATABASE_URL environment variable not set")
 		os.Exit(1)
@@ -44,10 +39,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	pm := storage.NewPartitionManager(log, pool)
-	pm.StartRotationWorker(ctx, 10*time.Second)
-
-	store := storage.NewPostgresStore(log, pool, pm)
+	store := storage.NewPostgresStore(log, pool)
 	server := api.NewServer(log, store)
 
 	go func() {

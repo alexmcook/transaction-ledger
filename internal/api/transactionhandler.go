@@ -2,19 +2,19 @@ package api
 
 import (
 	"log/slog"
-	"sync"
 
-	pb "github.com/alexmcook/transaction-ledger/api/proto/v1"
-	"github.com/bytedance/sonic"
 	"github.com/gofiber/fiber/v3"
-	"google.golang.org/protobuf/proto"
+	"github.com/google/uuid"
 )
 
 func (s *Server) handleGetTransaction(c fiber.Ctx) error {
 	idStr := c.Params("id")
-	id, ok := s.parseUUID(c, idStr)
-	if !ok {
-		return nil // parseUUID already handled the error response
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		s.log.ErrorContext(c.Context(), "Invalid transaction ID format", slog.String("id", idStr), slog.Any("error", err))
+		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{
+			Message: "Invalid transaction ID format",
+		})
 	}
 
 	transaction, err := s.store.Transactions().GetTransaction(c.Context(), id)
@@ -32,114 +32,9 @@ func (s *Server) handleGetTransaction(c fiber.Ctx) error {
 	}
 
 	return c.JSON(TransactionResponse{
-		ID:              transaction.ID,
-		AccountID:       transaction.AccountID,
-		Amount:          transaction.Amount,
-		TransactionType: transaction.TransactionType,
-		CreatedAt:       transaction.CreatedAt,
-	})
-}
-
-func (s *Server) handleCreateTransaction(c fiber.Ctx) error {
-	var req CreateTransactionRequest
-	if err := c.Bind().JSON(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{
-			Message: "Invalid request body",
-		})
-	}
-
-	err := s.store.Transactions().CreateTransaction(c.Context(), req)
-	if err != nil {
-		s.log.ErrorContext(c.Context(), "Failed to create transaction", slog.Any("account_id", req.AccountID), slog.Any("error", err))
-		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
-			Message: "Failed to create transaction",
-		})
-	}
-
-	return c.Status(fiber.StatusCreated).JSON(SingleTransactionResponse{
-		CreatedCount: 1,
-	})
-}
-
-var txSlicePool = sync.Pool{
-	New: func() any {
-		s := make([]CreateTransactionRequest, 0, 100)
-		return &s
-	},
-}
-
-func getTxSlice() *[]CreateTransactionRequest {
-	return txSlicePool.Get().(*[]CreateTransactionRequest)
-}
-
-func putTxSlice(s *[]CreateTransactionRequest) {
-	*s = (*s)[:0]
-	txSlicePool.Put(s)
-}
-
-func (s *Server) handleCreateBatchTransaction(c fiber.Ctx) error {
-	req := getTxSlice()
-	defer putTxSlice(req)
-
-	if err := sonic.Unmarshal(c.Body(), req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{
-			Message: "Invalid request body",
-		})
-	}
-
-	count, err := s.store.Transactions().CreateBinaryBatchTransaction(c.Context(), *req)
-	if err != nil {
-		s.log.ErrorContext(c.Context(), "Failed to create batch transactions", slog.Any("error", err))
-		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
-			Message: "Failed to create batch transactions",
-		})
-	}
-
-	return c.Status(fiber.StatusCreated).JSON(BatchTransactionResponse{
-		CreatedCount: count,
-	})
-}
-
-var txSlicePoolProto = sync.Pool{
-	New: func() any {
-		return &pb.TransactionBatch{
-			Transactions: make([]*pb.CreateTransactionRequest, 0, 1000),
-		}
-	},
-}
-
-func getTxProtoSlice() *pb.TransactionBatch {
-	return txSlicePoolProto.Get().(*pb.TransactionBatch)
-}
-
-func putTxProtoSlice(s *pb.TransactionBatch) {
-	s.Reset()
-	if (s.Transactions) != nil {
-		s.Transactions = s.Transactions[:0]
-	}
-	txSlicePoolProto.Put(s)
-}
-
-func (s *Server) handleCreateProtoBatchTransaction(c fiber.Ctx) error {
-	batch := getTxProtoSlice()
-	defer putTxProtoSlice(batch)
-
-	if err := proto.Unmarshal(c.Body(), batch); err != nil {
-		s.log.ErrorContext(c.Context(), "Failed to unmarshal proto batch", slog.Any("error", err))
-		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{
-			Message: "Invalid request body",
-		})
-	}
-
-	count, err := s.store.Transactions().CreateProtoBinaryBatchTransaction(c.Context(), batch)
-	if err != nil {
-		s.log.ErrorContext(c.Context(), "Failed to create batch transactions", slog.Any("error", err))
-		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
-			Message: "Failed to create batch transactions",
-		})
-	}
-
-	return c.Status(fiber.StatusCreated).JSON(BatchTransactionResponse{
-		CreatedCount: count,
+		ID:        transaction.ID,
+		AccountID: transaction.AccountID,
+		Amount:    transaction.Amount,
+		CreatedAt: transaction.CreatedAt,
 	})
 }
