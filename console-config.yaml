@@ -9,4 +9,4 @@ serde:
       paths: ["/app/proto"]
     mappings:
       - topicName: "transactions"
-        valueProtoType: "transaction.TransactionBatch"
+        valueProtoType: "transaction.Transaction"

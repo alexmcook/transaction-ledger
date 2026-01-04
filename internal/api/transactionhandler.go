@@ -54,40 +54,37 @@ func (s *Server) handleCreateTransaction(c fiber.Ctx) error {
 
 	s.log.InfoContext(c.Context(), "Creating transaction batch", slog.Int("count", len(body)))
 
-	batch := &pb.TransactionBatch{
-		Transactions: make([]*pb.Transaction, 0, len(body)),
-	}
+	records := make([]*kgo.Record, len(body))
 
-	for _, tr := range body {
-		batch.Transactions = append(batch.Transactions, &pb.Transaction{
-			Id:        tr.ID[:],
-			AccountId: tr.AccountID[:],
-			Amount:    tr.Amount,
+	for i := range body {
+		payload, err := proto.Marshal(&pb.Transaction{
+			Id:        body[i].ID[:],
+			AccountId: body[i].AccountID[:],
+			Amount:    body[i].Amount,
 			CreatedAt: time.Now().UnixNano(),
 		})
+		if err != nil {
+			s.log.ErrorContext(c.Context(), "Failed to marshal transaction payload", slog.Any("error", err))
+			return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
+				Message: "Failed to process transactions",
+			})
+		}
+
+		records[i] = &kgo.Record{
+			Topic: "transactions",
+			Value: payload,
+			Key:   body[i].AccountID[:],
+		}
 	}
 
-	payload, err := proto.Marshal(batch)
-	if err != nil {
-		s.log.ErrorContext(c.Context(), "Failed to marshal transaction batch", slog.Any("error", err))
+	if err := s.client.ProduceSync(c.Context(), records...).FirstErr(); err != nil {
+		s.log.ErrorContext(c.Context(), "Failed to sync", slog.Any("error", err))
 		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
-			Message: "Failed to process transactions",
-		})
-	}
-
-	results := s.client.ProduceSync(c.Context(), &kgo.Record{
-		Topic: "transactions",
-		Value: payload,
-	})
-
-	if err := results.FirstErr(); err != nil {
-		s.log.ErrorContext(c.Context(), "Failed to produce transaction batch to broker", slog.Any("error", err))
-		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
-			Message: "Failed to process transactions",
+			Message: "Failed to sync transactions",
 		})
 	}
 
 	return c.JSON(CreateTransactionResponse{
-		CreatedCount: len(batch.Transactions),
+		CreatedCount: len(body),
 	})
 }
