@@ -81,10 +81,14 @@ services:
     profiles: ["broker"]
     image: docker.redpanda.com/redpandadata/console:v3.3.2
     container_name: tl-redpanda-console
-    ports:
-      - "9090:9090"
     environment:
       KAFKA_BROKERS: "redpanda:29092"
+      CONFIG_FILEPATH: "/etc/redpanda/console.yaml"
+    ports:
+      - "9090:8080"
+    volumes:
+      - ./console-config.yaml:/etc/redpanda/console.yaml:ro
+      - ./proto:/app/proto:ro
 
   ###
   ### API Service
@@ -99,13 +103,12 @@ services:
     environment:
       DATABASE_URL_S1: ${DATABASE_URL_S1}
       DATABASE_URL_S2: ${DATABASE_URL_S2}
+      KAFKA_BROKERS: "redpanda:29092"
     depends_on:
       postgres-s1:
         condition: service_healthy
-      migrate-s1:
-        condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8080/health || exit 1"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8080/health"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -121,13 +124,12 @@ services:
     environment:
       DATABASE_URL_S1: ${DATABASE_URL_S1}
       DATABASE_URL_S2: ${DATABASE_URL_S2}
+      KAFKA_BROKERS: "redpanda:29092"
     depends_on:
       postgres-s2:
         condition: service_healthy
-      migrate-s2:
-        condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8080/health || exit 1"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8080/health"]
       interval: 10s
       timeout: 5s
       retries: 3

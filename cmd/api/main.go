@@ -13,6 +13,7 @@ import (
 	"github.com/alexmcook/transaction-ledger/internal/logger"
 	"github.com/alexmcook/transaction-ledger/internal/storage"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/twmb/franz-go/pkg/kgo"
 )
 
 func main() {
@@ -48,8 +49,26 @@ func main() {
 		}
 	}
 
+	client, err := kgo.NewClient(
+		kgo.SeedBrokers(os.Getenv("KAFKA_BROKERS")),
+		kgo.AllowAutoTopicCreation(),
+	)
+	if err != nil {
+		log.Error("Failed to create broker client", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+	defer client.Close()
+
+	pingCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	if err := client.Ping(pingCtx); err != nil {
+		log.Error("Failed to ping broker", slog.String("error", err.Error()), slog.String("brokers", os.Getenv("KAFKA_BROKERS")))
+		os.Exit(1)
+	}
+
 	shards := storage.NewShardedStore(log, pools)
-	server := api.NewServer(log, shards)
+	server := api.NewServer(log, shards, client)
 
 	go func() {
 		if err := server.Run(); err != nil {

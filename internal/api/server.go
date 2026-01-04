@@ -6,22 +6,25 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/pprof"
+	"github.com/twmb/franz-go/pkg/kgo"
 )
 
 type Server struct {
-	log   *slog.Logger
-	app   *fiber.App
-	store StoreRegistry
+	log    *slog.Logger
+	app    *fiber.App
+	store  StoreRegistry
+	client *kgo.Client
 }
 
-func NewServer(log *slog.Logger, store StoreRegistry) *Server {
+func NewServer(log *slog.Logger, store StoreRegistry, client *kgo.Client) *Server {
 	app := fiber.New()
 	app.Use(pprof.New())
 
 	s := &Server{
-		log:   log,
-		app:   app,
-		store: store,
+		log:    log,
+		app:    app,
+		store:  store,
+		client: client,
 	}
 
 	s.registerRoutes()

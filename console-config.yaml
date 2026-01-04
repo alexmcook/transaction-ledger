@@ -1,0 +1,12 @@
+kafka:
+  brokers: ["redpanda:29092"]
+
+serde:
+  protobuf:
+    enabled: true
+    fileSystem:
+      enabled: true
+      paths: ["/app/proto"]
+    mappings:
+      - topicName: "transactions"
+        valueProtoType: "transaction.TransactionBatch"

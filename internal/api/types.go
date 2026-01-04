@@ -25,12 +25,14 @@ type TransactionResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-type SingleTransactionResponse struct {
+type CreateTransactionResponse struct {
 	CreatedCount int `json:"created_count"`
 }
 
-type BatchTransactionResponse struct {
-	CreatedCount int `json:"created_count"`
+type TransactionRequest struct {
+	ID        uuid.UUID `json:"id"`
+	AccountID uuid.UUID `json:"account_id"`
+	Amount    int64     `json:"amount"`
 }
 
 type StoreRegistry interface {

@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package transaction;
+
+option go_package = "github.com/alexmcook/transaction-ledger/proto;pb";
+
+message Transaction {
+  bytes id = 1;
+  bytes account_id = 2;
+  int64 amount = 3;
+  int64 created_at = 4;
+}
+
+message TransactionBatch {
+  repeated Transaction transactions = 1;
+}
