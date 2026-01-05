@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"strconv"
@@ -89,6 +91,13 @@ func setup() (*worker.Writer, func(), error) {
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	go func() {
+		if err := http.ListenAndServe(":6060", nil); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to start pprof server: %v\n", err)
+			os.Exit(1)
+		}
+	}()
 
 	writer, cleanup, err := setup()
 	if err != nil {

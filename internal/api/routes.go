@@ -9,7 +9,8 @@ func (s *Server) registerRoutes() {
 	s.app.Get("/accounts/:id", s.handleGetAccount)
 	s.app.Get("/transactions/:id", s.handleGetTransaction)
 
-	s.app.Post("/transactions/json", s.handleCreateTransaction)
+	s.app.Post("/transactions/json", s.handleJSON)
+	s.app.Post("/transactions/effjson", s.handleEfficientJSON)
 }
 
 func (s *Server) handleHealth(c fiber.Ctx) error {

@@ -104,6 +104,8 @@ services:
       NUM_SHARDS: 2
       DATABASE_URL: ${DATABASE_URL}
       KAFKA_BROKERS: "redpanda:29092"
+    ports:
+      - "6061:6060"
     depends_on:
       postgres-s1:
         condition: service_healthy
@@ -125,6 +127,8 @@ services:
       NUM_SHARDS: 2
       DATABASE_URL: ${DATABASE_URL}
       KAFKA_BROKERS: "redpanda:29092"
+    ports:
+      - "6062:6060"
     depends_on:
       postgres-s2:
         condition: service_healthy
@@ -166,6 +170,8 @@ services:
       NUM_SHARDS: 2
       DATABASE_URL: ${DATABASE_URL}
       KAFKA_BROKERS: "redpanda:29092"
+    ports:
+      - "7071:6060"
     depends_on:
       migrate-s1:
         condition: service_completed_successfully
@@ -183,6 +189,8 @@ services:
       NUM_SHARDS: 2
       DATABASE_URL: ${DATABASE_URL}
       KAFKA_BROKERS: "redpanda:29092"
+    ports:
+      - "7072:6060"
     depends_on:
       migrate-s1:
         condition: service_completed_successfully
