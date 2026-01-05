@@ -2,36 +2,36 @@ services:
   ###
   ### Postgres shards
   ###
-  postgres-s1:
+  postgres-1:
     image: postgres:18-alpine
-    container_name: tl-postgres-s1
+    container_name: tl-postgres-1
     restart: unless-stopped
     env_file: .env
     environment:
-      DATABASE_URL: ${DATABASE_URL_S1}
+      DATABASE_URL: ${DATABASE_URL_1}
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "${POSTGRES_PORT_S1}:5432"
+      - "${POSTGRES_PORT_1}:5432"
     volumes:
-      - db_data_s1:/var/lib/postgresql
+      - db_data_1:/var/lib/postgresql
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 3
 
-  postgres-s2:
+  postgres-2:
     image: postgres:18-alpine
-    container_name: tl-postgres-s2
+    container_name: tl-postgres-2
     restart: unless-stopped
     env_file: .env
     environment:
-      DATABASE_URL: ${DATABASE_URL_S2}
+      DATABASE_URL: ${DATABASE_URL_2}
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "${POSTGRES_PORT_S2}:5432"
+      - "${POSTGRES_PORT_2}:5432"
     volumes:
-      - db_data_s2:/var/lib/postgresql
+      - db_data_2:/var/lib/postgresql
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}"]
       interval: 10s
@@ -41,25 +41,25 @@ services:
   ###
   ### Migrations
   ###
-  migrate-s1:
+  migrate-1:
     image: migrate/migrate:4
-    container_name: tl-migrate-s1
+    container_name: tl-migrate-1
     volumes:
       - ./migrations:/migrations
     depends_on:
-      postgres-s1:
+      postgres-1:
         condition: service_healthy
-    command: ["-path", "/migrations", "-database", "${DATABASE_URL_S1}", "up"]
+    command: ["-path", "/migrations", "-database", "${DATABASE_URL_1}", "up"]
 
-  migrate-s2:
+  migrate-2:
     image: migrate/migrate:4
-    container_name: tl-migrate-s2
+    container_name: tl-migrate-2
     volumes:
       - ./migrations:/migrations
     depends_on:
-      postgres-s2:
+      postgres-2:
         condition: service_healthy
-    command: ["-path", "/migrations", "-database", "${DATABASE_URL_S2}", "up"]
+    command: ["-path", "/migrations", "-database", "${DATABASE_URL_2}", "up"]
 
   ###
   ### Redpanda
@@ -74,7 +74,7 @@ services:
       - --kafka-addr internal://0.0.0.0:29092,external://0.0.0.0:9092
       - --advertise-kafka-addr internal://redpanda:29092,external://localhost:9092
       - --set redpanda.auto_create_topics_enabled=true
-      - --set redpanda.default_topic_partitions=16
+      - --set redpanda.default_topic_partitions=64
     ports:
       - "9092:9092"
 
@@ -93,12 +93,12 @@ services:
   ###
   ### API Service
   ###
-  api-s1:
+  api-1:
     build:
       context: .
       dockerfile: Dockerfile
       target: api
-    container_name: tl-api-s1
+    container_name: tl-api-1
     restart: unless-stopped
     environment:
       NUM_SHARDS: 2
@@ -107,7 +107,7 @@ services:
     ports:
       - "6061:6060"
     depends_on:
-      postgres-s1:
+      postgres-1:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8080/health"]
@@ -116,12 +116,12 @@ services:
       retries: 3
       start_period: 10s
 
-  api-s2:
+  api-2:
     build:
       context: .
       dockerfile: Dockerfile
       target: api
-    container_name: tl-api-s2
+    container_name: tl-api-2
     restart: unless-stopped
     environment:
       NUM_SHARDS: 2
@@ -130,7 +130,7 @@ services:
     ports:
       - "6062:6060"
     depends_on:
-      postgres-s2:
+      postgres-2:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8080/health"]
@@ -151,52 +151,52 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      api-s1:
+      api-1:
         condition: service_healthy
-      api-s2:
+      api-2:
         condition: service_healthy
 
   ###
   ### Workers
   ###
-  worker-s1:
+  worker-1:
     build:
       context: .
       dockerfile: Dockerfile
       target: worker
-    container_name: tl-worker-s1
+    container_name: tl-worker-1
     restart: unless-stopped
+    command: ["--partitions=0-31"]
     environment:
-      NUM_SHARDS: 2
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: ${DATABASE_URL_1}
       KAFKA_BROKERS: "redpanda:29092"
     ports:
       - "7071:6060"
     depends_on:
-      migrate-s1:
+      migrate-1:
         condition: service_completed_successfully
-      migrate-s2:
+      migrate-2:
         condition: service_completed_successfully
 
-  worker-s2:
+  worker-2:
     build:
       context: .
       dockerfile: Dockerfile
       target: worker
-    container_name: tl-worker-s2
+    container_name: tl-worker-2
     restart: unless-stopped
+    command: ["--partitions=32-63"]
     environment:
-      NUM_SHARDS: 2
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: ${DATABASE_URL_2}
       KAFKA_BROKERS: "redpanda:29092"
     ports:
       - "7072:6060"
     depends_on:
-      migrate-s1:
+      migrate-1:
         condition: service_completed_successfully
-      migrate-s2:
+      migrate-2:
         condition: service_completed_successfully
 
 volumes:
-  db_data_s1:
-  db_data_s2:
+  db_data_1:
+  db_data_2:

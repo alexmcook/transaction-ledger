@@ -8,7 +8,6 @@ import (
 	"github.com/alexmcook/transaction-ledger/internal/model"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/twmb/franz-go/pkg/kgo"
 )
 
 type ShardedStore struct {
@@ -44,9 +43,4 @@ func (s *ShardedStore) GetAccount(ctx context.Context, uid uuid.UUID) (*model.Ac
 func (s *ShardedStore) GetTransaction(ctx context.Context, uid uuid.UUID) (*model.Transaction, error) {
 	shard := s.getShard(uid)
 	return shard.Transactions().GetTransaction(ctx, uid)
-}
-
-func (s *ShardedStore) WriteBatch(ctx context.Context, shardId int, batch []*kgo.Record) error {
-	s.log.DebugContext(ctx, "Writing batch to shard", slog.Int("shardId", shardId), slog.Int("batchSize", len(batch)))
-	return s.shards[shardId].transactionStore.WriteBatch(ctx, shardId, batch)
 }

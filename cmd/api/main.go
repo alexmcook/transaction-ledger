@@ -47,7 +47,7 @@ func setup() (*api.Server, func(), error) {
 			return nil, cleanup, fmt.Errorf("DATABASE_URL environment variable not set")
 		}
 
-		dbUrl := fmt.Sprintf(dbUrlEnv, i+1) // postgres-s%d
+		dbUrl := fmt.Sprintf(dbUrlEnv, i+1) // postgres-%d
 
 		pool, err := pgxpool.New(context.Background(), dbUrl)
 		if err != nil {

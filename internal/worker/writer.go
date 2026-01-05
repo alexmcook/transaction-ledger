@@ -2,49 +2,43 @@ package worker
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"log/slog"
 	"sync"
 	"time"
 
 	"github.com/alexmcook/transaction-ledger/internal/storage"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-type Writer struct {
-	log        *slog.Logger
-	shards     *storage.ShardedStore
-	client     *kgo.Client
-	numShards  int
-	shardChans []chan ShardWork
-	workerWg   sync.WaitGroup
+type Work struct {
+	Records []*kgo.Record
+	Done    chan error
 }
 
-func NewWriter(log *slog.Logger, shards *storage.ShardedStore, client *kgo.Client, numShards int) *Writer {
+type Writer struct {
+	log      *slog.Logger
+	db       *storage.PostgresStore
+	client   *kgo.Client
+	workChan chan Work
+	workerWg sync.WaitGroup
+}
+
+func NewWriter(log *slog.Logger, pool *pgxpool.Pool, client *kgo.Client) *Writer {
 	return &Writer{
-		log:       log,
-		shards:    shards,
-		client:    client,
-		numShards: numShards,
+		log:    log,
+		db:     storage.NewPostgresStore(log, pool),
+		client: client,
 	}
 }
 
-func (w *Writer) getShard(key []byte) int {
-	// Entropy from last 8 bytes
-	val := binary.BigEndian.Uint64(key[8:16])
-	return int(val % uint64(w.numShards))
-}
-
 func (w *Writer) Start(ctx context.Context) error {
-	w.shardChans = make([]chan ShardWork, w.numShards)
+	w.workChan = make(chan Work, 100)
 
-	for i := range w.numShards {
-		w.shardChans[i] = make(chan ShardWork, 2)
-		for range 2 {
-			w.workerWg.Add(1)
-			go w.startShardWorker(ctx, i, w.shardChans[i])
-		}
+	for range 2 {
+		w.workerWg.Add(1)
+		go w.startShardWorker(ctx, w.workChan)
 	}
 
 	for {
@@ -54,6 +48,7 @@ func (w *Writer) Start(ctx context.Context) error {
 		default:
 			fetches := w.client.PollRecords(ctx, 50000)
 			if fetches.IsClientClosed() {
+				w.log.WarnContext(ctx, "Kafka client closed", slog.Any("ctx_err", ctx.Err()), slog.Any("client_err", w.client.Context().Err()))
 				return nil
 			}
 
@@ -64,17 +59,16 @@ func (w *Writer) Start(ctx context.Context) error {
 				continue
 			}
 
-			if err := w.client.CommitRecords(ctx, fetches.Records()...); err != nil {
-				w.log.ErrorContext(ctx, "Failed to commit records", slog.String("error", err.Error()))
-			}
+			// TODO: manual commit offset to db
+			// if err := w.client.CommitRecords(ctx, fetches.Records()...); err != nil {
+			// 	w.log.ErrorContext(ctx, "Failed to commit records", slog.String("error", err.Error()))
+			// }
 		}
 	}
 }
 
 func (w *Writer) Stop(ctx context.Context) error {
-	for _, ch := range w.shardChans {
-		close(ch)
-	}
+	close(w.workChan)
 
 	done := make(chan struct{})
 	go func() {
@@ -91,7 +85,7 @@ func (w *Writer) Stop(ctx context.Context) error {
 	}
 }
 
-func (w *Writer) startShardWorker(ctx context.Context, shardID int, workChan chan ShardWork) {
+func (w *Writer) startShardWorker(ctx context.Context, workChan chan Work) {
 	defer w.workerWg.Done()
 	for {
 		select {
@@ -100,10 +94,10 @@ func (w *Writer) startShardWorker(ctx context.Context, shardID int, workChan cha
 				return
 			}
 
-			err := w.shards.WriteBatch(ctx, shardID, work.Records)
+			err := w.db.Transactions().WriteBatch(ctx, work.Records)
 			work.Done <- err
-		case <-time.After(10 * time.Second):
-			w.log.DebugContext(ctx, "Shard worker idle", slog.Int("shardID", shardID))
+		case <-time.After(20 * time.Second):
+			w.log.DebugContext(ctx, "Worker idle")
 		}
 	}
 }
@@ -114,35 +108,19 @@ func (w *Writer) dispatchBatch(ctx context.Context, fetches kgo.Fetches) error {
 		return nil
 	}
 
-	shards := make([][]*kgo.Record, w.numShards)
-	for _, record := range records {
-		shardID := w.getShard(record.Key)
-		shards[shardID] = append(shards[shardID], record)
+	doneChan := make(chan error)
+
+	w.workChan <- Work{
+		Records: records,
+		Done:    doneChan,
 	}
 
-	shardsToAck := 0
-	doneChan := make(chan error, w.numShards)
-
-	for shardID, shardRecords := range shards {
-		if len(shardRecords) == 0 {
-			continue
-		}
-		shardsToAck++
-
-		w.shardChans[shardID] <- ShardWork{
-			Records: shardRecords,
-			Done:    doneChan,
-		}
-	}
-
-	for range shardsToAck {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case err := <-doneChan:
-			if err != nil {
-				return err
-			}
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case err := <-doneChan:
+		if err != nil {
+			return err
 		}
 	}
 

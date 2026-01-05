@@ -1,1 +1,1 @@
-DROP TABLE IF EXISTS accounts, transactions, staging_0, staging_1;
+DROP TABLE IF EXISTS accounts, transactions, staging_0, kafka_offsets;

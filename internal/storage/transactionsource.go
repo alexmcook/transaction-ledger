@@ -17,6 +17,15 @@ type TransactionSource struct {
 	records []*kgo.Record
 	idx     int
 	pb      pb.Transaction
+	offsets map[int32]int64
+}
+
+func NewTransactionSource(records []*kgo.Record) *TransactionSource {
+	return &TransactionSource{
+		records: records,
+		idx:     -1,
+		offsets: make(map[int32]int64),
+	}
 }
 
 func (ts *TransactionSource) Next() bool {
@@ -30,6 +39,8 @@ func (ts *TransactionSource) Values() ([]any, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	ts.offsets[record.Partition] = record.Offset
 
 	createdAt := time.Unix(0, ts.pb.CreatedAt)
 
@@ -46,4 +57,8 @@ func (ts *TransactionSource) Values() ([]any, error) {
 
 func (ts *TransactionSource) Err() error {
 	return nil
+}
+
+func (ts *TransactionSource) Offsets() map[int32]int64 {
+	return ts.offsets
 }
