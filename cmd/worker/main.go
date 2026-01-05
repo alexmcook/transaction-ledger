@@ -11,14 +11,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/alexmcook/transaction-ledger/internal/api"
 	"github.com/alexmcook/transaction-ledger/internal/logger"
 	"github.com/alexmcook/transaction-ledger/internal/storage"
+	"github.com/alexmcook/transaction-ledger/internal/worker"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-func setup() (*api.Server, func(), error) {
+func setup() (*worker.Writer, func(), error) {
 	var closures []func()
 	var once sync.Once
 	cleanup := func() {
@@ -29,8 +29,8 @@ func setup() (*api.Server, func(), error) {
 		})
 	}
 
-	log := logger.NewLogger(slog.LevelInfo)
-	log.Info("Starting transaction ledger API server")
+	log := logger.NewLogger(slog.LevelDebug)
+	log.Info("Starting transaction ledger worker")
 
 	numShards, err := strconv.Atoi(os.Getenv("NUM_SHARDS"))
 	if err != nil || numShards <= 0 {
@@ -65,7 +65,8 @@ func setup() (*api.Server, func(), error) {
 
 	client, err := kgo.NewClient(
 		kgo.SeedBrokers(os.Getenv("KAFKA_BROKERS")),
-		kgo.AllowAutoTopicCreation(),
+		kgo.ConsumerGroup("transaction-writer"),
+		kgo.ConsumeTopics("transactions"),
 	)
 	if err != nil {
 		return nil, cleanup, fmt.Errorf("failed to create broker client: %v", err)
@@ -80,16 +81,16 @@ func setup() (*api.Server, func(), error) {
 	}
 
 	shards := storage.NewShardedStore(log, pools)
-	server := api.NewServer(log, shards, client)
+	writer := worker.NewWriter(log, shards, client, numShards)
 
-	return server, cleanup, nil
+	return writer, cleanup, nil
 }
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	server, cleanup, err := setup()
+	writer, cleanup, err := setup()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to set up server: %v\n", err)
 		cleanup()
@@ -97,8 +98,8 @@ func main() {
 	}
 
 	go func() {
-		if err := server.Run(); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to start server: %v\n", err)
+		if err := writer.Start(ctx); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to start worker: %v\n", err)
 			stop()
 		}
 	}()
@@ -109,8 +110,8 @@ func main() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := server.Stop(shutdownCtx); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to stop server: %v\n", err)
+	if err := writer.Stop(shutdownCtx); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to stop worker: %v\n", err)
 	}
 
 	cleanup()

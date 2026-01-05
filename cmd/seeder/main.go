@@ -80,6 +80,22 @@ func seedDatabase(pools []*pgxpool.Pool, uuids []uuid.UUID) error {
 	return nil
 }
 
+func writeToFile(filename string, data []uuid.UUID) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		return fmt.Errorf("Failed to create file: %v", err)
+	}
+	defer file.Close()
+
+	for _, uid := range data {
+		_, err := file.WriteString(uid.String() + "\n")
+		if err != nil {
+			return fmt.Errorf("Failed to write to file: %v", err)
+		}
+	}
+	return nil
+}
+
 func main() {
 	if err := godotenv.Load(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading .env file: %v\n", err)
@@ -106,6 +122,11 @@ func main() {
 
 	if err = seedDatabase(pools, uuids); err != nil {
 		fmt.Fprintf(os.Stderr, "Error seeding data: %v\n", err)
+		os.Exit(1)
+	}
+
+	if err = writeToFile("data/ids.csv", uuids); err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing UUIDs to file: %v\n", err)
 		os.Exit(1)
 	}
 

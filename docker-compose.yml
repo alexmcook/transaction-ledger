@@ -65,7 +65,6 @@ services:
   ### Redpanda
   ###
   redpanda:
-    profiles: ["broker"]
     image: docker.redpanda.com/redpandadata/redpanda:v25.3.4
     container_name: tl-redpanda
     command:
@@ -74,11 +73,12 @@ services:
       - --smp 1 # n cores
       - --kafka-addr internal://0.0.0.0:29092,external://0.0.0.0:9092
       - --advertise-kafka-addr internal://redpanda:29092,external://localhost:9092
+      - --set redpanda.auto_create_topics_enabled=true
+      - --set redpanda.default_topic_partitions=16
     ports:
       - "9092:9092"
 
   console:
-    profiles: ["broker"]
     image: docker.redpanda.com/redpandadata/console:v3.3.2
     container_name: tl-redpanda-console
     environment:
@@ -94,15 +94,15 @@ services:
   ### API Service
   ###
   api-s1:
-    profiles: ["api"]
     build:
       context: .
       dockerfile: Dockerfile
+      target: api
     container_name: tl-api-s1
     restart: unless-stopped
     environment:
-      DATABASE_URL_S1: ${DATABASE_URL_S1}
-      DATABASE_URL_S2: ${DATABASE_URL_S2}
+      NUM_SHARDS: 2
+      DATABASE_URL: ${DATABASE_URL}
       KAFKA_BROKERS: "redpanda:29092"
     depends_on:
       postgres-s1:
@@ -115,15 +115,15 @@ services:
       start_period: 10s
 
   api-s2:
-    profiles: ["api"]
     build:
       context: .
       dockerfile: Dockerfile
+      target: api
     container_name: tl-api-s2
     restart: unless-stopped
     environment:
-      DATABASE_URL_S1: ${DATABASE_URL_S1}
-      DATABASE_URL_S2: ${DATABASE_URL_S2}
+      NUM_SHARDS: 2
+      DATABASE_URL: ${DATABASE_URL}
       KAFKA_BROKERS: "redpanda:29092"
     depends_on:
       postgres-s2:
@@ -139,7 +139,6 @@ services:
   ### Nginx
   ###
   nginx:
-    profiles: ["api"]
     image: nginx:alpine
     container_name: tl-nginx
     restart: unless-stopped
@@ -152,6 +151,43 @@ services:
         condition: service_healthy
       api-s2:
         condition: service_healthy
+
+  ###
+  ### Workers
+  ###
+  worker-s1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: worker
+    container_name: tl-worker-s1
+    restart: unless-stopped
+    environment:
+      NUM_SHARDS: 2
+      DATABASE_URL: ${DATABASE_URL}
+      KAFKA_BROKERS: "redpanda:29092"
+    depends_on:
+      migrate-s1:
+        condition: service_completed_successfully
+      migrate-s2:
+        condition: service_completed_successfully
+
+  worker-s2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: worker
+    container_name: tl-worker-s2
+    restart: unless-stopped
+    environment:
+      NUM_SHARDS: 2
+      DATABASE_URL: ${DATABASE_URL}
+      KAFKA_BROKERS: "redpanda:29092"
+    depends_on:
+      migrate-s1:
+        condition: service_completed_successfully
+      migrate-s2:
+        condition: service_completed_successfully
 
 volumes:
   db_data_s1:
