@@ -2,7 +2,6 @@ package api
 
 import (
 	"log/slog"
-	"time"
 
 	pb "github.com/alexmcook/transaction-ledger/proto"
 	"github.com/gofiber/fiber/v3"
@@ -19,7 +18,7 @@ func (s *Server) handleJSON(c fiber.Ctx) error {
 		})
 	}
 
-	s.log.InfoContext(c.Context(), "Creating transaction batch", slog.Int("count", len(body)))
+	s.log.DebugContext(c.Context(), "Creating transaction batch", slog.Int("count", len(body)))
 
 	records := make([]*kgo.Record, len(body))
 
@@ -28,7 +27,6 @@ func (s *Server) handleJSON(c fiber.Ctx) error {
 			Id:        body[i].ID[:],
 			AccountId: body[i].AccountID[:],
 			Amount:    body[i].Amount,
-			CreatedAt: time.Now().UnixNano(),
 		})
 		if err != nil {
 			s.log.ErrorContext(c.Context(), "Failed to marshal transaction payload", slog.Any("error", err))
@@ -51,7 +49,7 @@ func (s *Server) handleJSON(c fiber.Ctx) error {
 		})
 	}
 
-	return c.JSON(CreateTransactionResponse{
+	return c.Status(201).JSON(CreateTransactionResponse{
 		CreatedCount: len(body),
 	})
 }

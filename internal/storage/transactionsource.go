@@ -3,15 +3,11 @@ package storage
 import (
 	"encoding/binary"
 	"sync/atomic"
-	"time"
 
 	pb "github.com/alexmcook/transaction-ledger/proto"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"google.golang.org/protobuf/proto"
 )
-
-// LOAD TESTING salt to avoid ID collisions
-var salt = uint32(time.Now().UnixNano())
 
 type TransactionSource struct {
 	records []*kgo.Record
@@ -42,8 +38,6 @@ func (ts *TransactionSource) Values() ([]any, error) {
 
 	ts.offsets[record.Partition] = record.Offset
 
-	createdAt := time.Unix(0, ts.pb.CreatedAt)
-
 	// LOAD TESTING modify ID to avoid collisions
 	binary.BigEndian.PutUint32(ts.pb.Id[0:4], atomic.AddUint32(&salt, 1))
 
@@ -51,7 +45,7 @@ func (ts *TransactionSource) Values() ([]any, error) {
 		ts.pb.Id,
 		ts.pb.AccountId,
 		ts.pb.Amount,
-		createdAt,
+		record.Timestamp,
 	}, nil
 }
 

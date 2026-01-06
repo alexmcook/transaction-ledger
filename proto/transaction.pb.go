@@ -26,7 +26,6 @@ type Transaction struct {
 	Id            []byte                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	AccountId     []byte                 `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
 	Amount        int64                  `protobuf:"varint,3,opt,name=amount,proto3" json:"amount,omitempty"`
-	CreatedAt     int64                  `protobuf:"varint,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -82,13 +81,6 @@ func (x *Transaction) GetAmount() int64 {
 	return 0
 }
 
-func (x *Transaction) GetCreatedAt() int64 {
-	if x != nil {
-		return x.CreatedAt
-	}
-	return 0
-}
-
 type TransactionBatch struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Transactions  []*Transaction         `protobuf:"bytes,1,rep,name=transactions,proto3" json:"transactions,omitempty"`
@@ -137,14 +129,12 @@ var File_proto_transaction_proto protoreflect.FileDescriptor
 
 const file_proto_transaction_proto_rawDesc = "" +
 	"\n" +
-	"\x17proto/transaction.proto\x12\vtransaction\"s\n" +
+	"\x17proto/transaction.proto\x12\vtransaction\"T\n" +
 	"\vTransaction\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\fR\x02id\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x02 \x01(\fR\taccountId\x12\x16\n" +
-	"\x06amount\x18\x03 \x01(\x03R\x06amount\x12\x1d\n" +
-	"\n" +
-	"created_at\x18\x04 \x01(\x03R\tcreatedAt\"P\n" +
+	"\x06amount\x18\x03 \x01(\x03R\x06amount\"P\n" +
 	"\x10TransactionBatch\x12<\n" +
 	"\ftransactions\x18\x01 \x03(\v2\x18.transaction.TransactionR\ftransactionsB2Z0github.com/alexmcook/transaction-ledger/proto;pbb\x06proto3"
 

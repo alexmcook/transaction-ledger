@@ -12,16 +12,11 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-type Work struct {
-	Records []*kgo.Record
-	Done    chan error
-}
-
 type Writer struct {
 	log      *slog.Logger
 	db       *storage.PostgresStore
 	client   *kgo.Client
-	workChan chan Work
+	workChan chan []*kgo.Record
 	workerWg sync.WaitGroup
 }
 
@@ -34,35 +29,34 @@ func NewWriter(log *slog.Logger, pool *pgxpool.Pool, client *kgo.Client) *Writer
 }
 
 func (w *Writer) Start(ctx context.Context) error {
-	w.workChan = make(chan Work, 100)
+	w.workChan = make(chan []*kgo.Record, 2)
 
-	for range 2 {
-		w.workerWg.Add(1)
-		go w.startShardWorker(ctx, w.workChan)
-	}
+	w.workerWg.Add(1)
+	// Clean context to allow graceful shutdown
+	workerCtx := context.WithoutCancel(context.Background())
+	go w.startWorker(workerCtx, w.workChan)
 
 	for {
 		select {
 		case <-ctx.Done():
-			return nil
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			return w.Stop(shutdownCtx)
 		default:
 			fetches := w.client.PollRecords(ctx, 50000)
 			if fetches.IsClientClosed() {
 				w.log.WarnContext(ctx, "Kafka client closed", slog.Any("ctx_err", ctx.Err()), slog.Any("client_err", w.client.Context().Err()))
+				// TODO: retry reconnect
 				return nil
 			}
 
-			err := w.dispatchBatch(ctx, fetches)
-			if err != nil {
-				w.log.ErrorContext(ctx, "Failed to dispatch batch", slog.String("error", err.Error()))
-				time.Sleep(100 * time.Millisecond)
+			w.log.DebugContext(ctx, "Fetched records", slog.Int("count", len(fetches.Records())))
+
+			if len(fetches.Records()) == 0 {
 				continue
 			}
 
-			// TODO: manual commit offset to db
-			// if err := w.client.CommitRecords(ctx, fetches.Records()...); err != nil {
-			// 	w.log.ErrorContext(ctx, "Failed to commit records", slog.String("error", err.Error()))
-			// }
+			w.workChan <- fetches.Records()
 		}
 	}
 }
@@ -85,7 +79,7 @@ func (w *Writer) Stop(ctx context.Context) error {
 	}
 }
 
-func (w *Writer) startShardWorker(ctx context.Context, workChan chan Work) {
+func (w *Writer) startWorker(ctx context.Context, workChan chan []*kgo.Record) {
 	defer w.workerWg.Done()
 	for {
 		select {
@@ -94,35 +88,20 @@ func (w *Writer) startShardWorker(ctx context.Context, workChan chan Work) {
 				return
 			}
 
-			err := w.db.Transactions().WriteBatch(ctx, work.Records)
-			work.Done <- err
+			for {
+				if err := w.db.Transactions().WriteBatch(ctx, work); err != nil {
+					w.log.ErrorContext(ctx, "Failed to write batch", slog.Int("count", len(work)), slog.Any("error", err))
+					time.Sleep(5 * time.Second)
+					continue
+				}
+				break
+			}
+
+			w.log.DebugContext(ctx, "Committing records", slog.Int("count", len(work)))
+			w.client.CommitRecords(ctx, work...)
+
 		case <-time.After(20 * time.Second):
 			w.log.DebugContext(ctx, "Worker idle")
 		}
 	}
-}
-
-func (w *Writer) dispatchBatch(ctx context.Context, fetches kgo.Fetches) error {
-	records := fetches.Records()
-	if len(records) == 0 {
-		return nil
-	}
-
-	doneChan := make(chan error)
-
-	w.workChan <- Work{
-		Records: records,
-		Done:    doneChan,
-	}
-
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case err := <-doneChan:
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }

@@ -87,6 +87,7 @@ services:
     ports:
       - "9090:8080"
     volumes:
+      - rp_data:/var/lib/redpanda/data
       - ./console-config.yaml:/etc/redpanda/console.yaml:ro
       - ./proto:/app/proto:ro
 
@@ -198,5 +199,6 @@ services:
         condition: service_completed_successfully
 
 volumes:
+  rp_data:
   db_data_1:
   db_data_2:
