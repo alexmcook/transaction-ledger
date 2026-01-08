@@ -77,7 +77,7 @@ func main() {
 	const (
 		numFiles  = 100
 		batchSize = 1000
-		targetRPS = 500 * 1000 / batchSize
+		targetRPS = 420 * 1000 / batchSize
 		targetURL = "http://localhost/transactions/proto"
 	)
 

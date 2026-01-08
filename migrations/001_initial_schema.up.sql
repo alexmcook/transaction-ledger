@@ -4,12 +4,31 @@ CREATE TABLE IF NOT EXISTS accounts (
   created_at TIMESTAMPTZ NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS transactions (
-  id UUID PRIMARY KEY,
-  account_id UUID NOT NULL,
-  amount BIGINT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL
-);
+DO $$
+BEGIN
+  FOR i IN 0..63 LOOP
+    EXECUTE format('
+      CREATE TABLE IF NOT EXISTS transactions_%s (
+        id UUID PRIMARY KEY,
+        account_id UUID NOT NULL,
+        amount BIGINT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_transactions_%s_account_id
+      ON transactions_%s (account_id);
+
+      CREATE UNLOGGED TABLE IF NOT EXISTS staging_%s (
+        id UUID,
+        account_id UUID,
+        amount BIGINT,
+        created_at TIMESTAMPTZ
+      );
+
+      ALTER TABLE staging_%s SET (autovacuum_enabled = false);
+    ', i, i, i, i, i);
+  END LOOP;
+END $$;
 
 -- Table to manually track Kafka offsets for each partition
 CREATE TABLE IF NOT EXISTS kafka_offsets (

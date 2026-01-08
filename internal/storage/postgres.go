@@ -18,7 +18,7 @@ func NewPostgresStore(log *slog.Logger, pool *pgxpool.Pool) *PostgresStore {
 		log:              log,
 		pool:             pool,
 		accountStore:     &AccountStore{pool: pool},
-		transactionStore: &TransactionStore{pool: pool},
+		transactionStore: NewTransactionStore(pool),
 	}
 }
 
