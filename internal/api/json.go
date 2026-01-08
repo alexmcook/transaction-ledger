@@ -2,6 +2,7 @@ package api
 
 import (
 	"log/slog"
+	"time"
 
 	pb "github.com/alexmcook/transaction-ledger/proto"
 	"github.com/gofiber/fiber/v3"
@@ -11,12 +12,15 @@ import (
 
 func (s *Server) handleJSON(c fiber.Ctx) error {
 	var body []TransactionRequest
+
+	unmarshalStart := time.Now()
 	if err := c.Bind().JSON(&body); err != nil {
 		s.log.ErrorContext(c.Context(), "Invalid request body", slog.Any("error", err))
 		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{
 			Message: "Invalid request body",
 		})
 	}
+	unmarshalLatency.WithLabelValues("json").Observe(time.Since(unmarshalStart).Seconds())
 
 	s.log.DebugContext(c.Context(), "Creating transaction batch", slog.Int("count", len(body)))
 
@@ -42,12 +46,15 @@ func (s *Server) handleJSON(c fiber.Ctx) error {
 		}
 	}
 
+	kafkaStart := time.Now()
 	if err := s.client.ProduceSync(c.Context(), records...).FirstErr(); err != nil {
 		s.log.ErrorContext(c.Context(), "Failed to sync", slog.Any("error", err))
 		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
 			Message: "Failed to sync transactions",
 		})
 	}
+	kafkaProducerLatency.Observe(time.Since(kafkaStart).Seconds())
+	kafkaTransactionsProduced.Add(float64(len(body)))
 
 	return c.Status(201).JSON(CreateTransactionResponse{
 		CreatedCount: len(body),

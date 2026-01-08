@@ -16,6 +16,7 @@ import (
 	"github.com/alexmcook/transaction-ledger/internal/logger"
 	"github.com/alexmcook/transaction-ledger/internal/worker"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/twmb/franz-go/pkg/kadm"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
@@ -68,7 +69,7 @@ func getPartitionOffsets(pool *pgxpool.Pool, minPart int, maxPart int) (map[stri
 	return map[string]map[int32]kgo.Offset{"transactions": assignments}, nil
 }
 
-func setup(minPart int, maxPart int) (*worker.Writer, func(), error) {
+func setup(minPart int, maxPart int) (*worker.EfficientWriter, func(), error) {
 	var closures []func()
 	var once sync.Once
 	cleanup := func() {
@@ -79,7 +80,7 @@ func setup(minPart int, maxPart int) (*worker.Writer, func(), error) {
 		})
 	}
 
-	log := logger.NewLogger(slog.LevelDebug)
+	log := logger.NewLogger(slog.LevelInfo)
 	log.Info(fmt.Sprintf("Starting transaction ledger worker for partitions %d-%d", minPart, maxPart))
 
 	dbUrl, ok := os.LookupEnv("DATABASE_URL")
@@ -125,7 +126,7 @@ func setup(minPart int, maxPart int) (*worker.Writer, func(), error) {
 	defer cancel()
 	err = ensureTopicExists(topicCtx, client, "transactions")
 
-	writer := worker.NewWriter(log, pool, client)
+	writer := worker.NewEfficientWriter(log, pool, client)
 
 	return writer, cleanup, nil
 }
@@ -162,6 +163,11 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Failed to start pprof server: %v\n", err)
 			os.Exit(1)
 		}
+	}()
+
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		http.ListenAndServe(":8080", nil)
 	}()
 
 	writer, cleanup, err := setup(minPartition, maxPartition)

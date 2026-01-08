@@ -107,6 +107,7 @@ services:
       KAFKA_BROKERS: "redpanda:29092"
     ports:
       - "6061:6060"
+      - "8081:8080"
     depends_on:
       postgres-1:
         condition: service_healthy
@@ -130,6 +131,7 @@ services:
       KAFKA_BROKERS: "redpanda:29092"
     ports:
       - "6062:6060"
+      - "8082:8080"
     depends_on:
       postgres-2:
         condition: service_healthy
@@ -198,7 +200,39 @@ services:
       migrate-2:
         condition: service_completed_successfully
 
+  ###
+  ### Monitoring
+  ###
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: tl-prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9091:9090"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: tl-grafana
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Admin"
+      GF_AUTH_BASIC_ENABLED: "false"
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_healthy
+
 volumes:
-  rp_data:
   db_data_1:
   db_data_2:
+  rp_data:
+  grafana_data:

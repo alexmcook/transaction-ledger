@@ -43,12 +43,14 @@ func (w *Writer) Start(ctx context.Context) error {
 			defer cancel()
 			return w.Stop(shutdownCtx)
 		default:
+			fetchStart := time.Now()
 			fetches := w.client.PollRecords(ctx, 50000)
 			if fetches.IsClientClosed() {
 				w.log.WarnContext(ctx, "Kafka client closed", slog.Any("ctx_err", ctx.Err()), slog.Any("client_err", w.client.Context().Err()))
 				// TODO: retry reconnect
 				return nil
 			}
+			fetchLatency.Observe(time.Since(fetchStart).Seconds())
 
 			w.log.DebugContext(ctx, "Fetched records", slog.Int("count", len(fetches.Records())))
 
@@ -89,11 +91,14 @@ func (w *Writer) startWorker(ctx context.Context, workChan chan []*kgo.Record) {
 			}
 
 			for {
+				startBatch := time.Now()
 				if err := w.db.Transactions().WriteBatch(ctx, work); err != nil {
 					w.log.ErrorContext(ctx, "Failed to write batch", slog.Int("count", len(work)), slog.Any("error", err))
 					time.Sleep(5 * time.Second)
 					continue
 				}
+				dbWriteLatency.Observe(time.Since(startBatch).Seconds())
+				transactionsStaged.Add(float64(len(work)))
 				break
 			}
 

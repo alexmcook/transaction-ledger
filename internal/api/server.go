@@ -5,7 +5,9 @@ import (
 	"log/slog"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/adaptor"
 	"github.com/gofiber/fiber/v3/middleware/pprof"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
@@ -19,6 +21,9 @@ type Server struct {
 func NewServer(log *slog.Logger, store StoreRegistry, client *kgo.Client) *Server {
 	app := fiber.New()
 	app.Use(pprof.New())
+
+	app.Get("/metrics", adaptor.HTTPHandler(promhttp.Handler()))
+	app.Use(prometheusMiddleware)
 
 	s := &Server{
 		log:    log,

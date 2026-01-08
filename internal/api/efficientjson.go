@@ -37,12 +37,14 @@ func (s *Server) handleEfficientJSON(c fiber.Ctx) error {
 		})
 	}
 
+	unmarhshalStart := time.Now()
 	if err := sonic.Unmarshal(c.Body(), bodyPtr); err != nil {
 		s.log.ErrorContext(c.Context(), "Invalid request body", slog.Any("error", err))
 		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{
 			Message: "Invalid request body",
 		})
 	}
+	unmarshalLatency.WithLabelValues("efficient_json").Observe(time.Since(unmarhshalStart).Seconds())
 
 	now := time.Now()
 	body := *bodyPtr
@@ -50,7 +52,7 @@ func (s *Server) handleEfficientJSON(c fiber.Ctx) error {
 	var records []*kgo.Record
 	if count > 1000 {
 		// Handle case where batch size exceeds preallocated pool size
-		if count > 20000 {
+		if count > 10000 {
 			s.log.ErrorContext(c.Context(), "Request batch size too large", slog.Int("count", count))
 			return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{
 				Message: "Request batch size too large",
@@ -101,12 +103,15 @@ func (s *Server) handleEfficientJSON(c fiber.Ctx) error {
 		records[i].Timestamp = now
 	}
 
+	kafkaStart := time.Now()
 	if err := s.client.ProduceSync(c.Context(), records...).FirstErr(); err != nil {
 		s.log.ErrorContext(c.Context(), "Failed to sync", slog.Any("error", err))
 		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{
 			Message: "Failed to sync transactions",
 		})
 	}
+	kafkaProducerLatency.Observe(time.Since(kafkaStart).Seconds())
+	kafkaTransactionsProduced.Add(float64(count))
 
 	return c.Status(201).JSON(CreateTransactionResponse{
 		CreatedCount: count,
