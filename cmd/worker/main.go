@@ -116,6 +116,9 @@ func setup(minPart int, maxPart int) (*worker.Coordinator, func(), error) {
 	client, err := kgo.NewClient(
 		kgo.SeedBrokers(os.Getenv("KAFKA_BROKERS")),
 		kgo.ConsumePartitions(topicPartitions),
+		kgo.BrokerMaxReadBytes(512*1024*1024),
+		kgo.FetchMaxBytes(256*1024*1024),
+		kgo.FetchMaxPartitionBytes(16*1024*1024),
 	)
 	if err != nil {
 		return nil, cleanup, fmt.Errorf("failed to create broker client: %v", err)
