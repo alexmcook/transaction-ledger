@@ -102,6 +102,7 @@ services:
     container_name: tl-api-1
     restart: unless-stopped
     environment:
+      ENV: "production"
       NUM_SHARDS: 2
       DATABASE_URL: ${DATABASE_URL}
       KAFKA_BROKERS: "redpanda:29092"
@@ -126,6 +127,7 @@ services:
     container_name: tl-api-2
     restart: unless-stopped
     environment:
+      ENV: "production"
       NUM_SHARDS: 2
       DATABASE_URL: ${DATABASE_URL}
       KAFKA_BROKERS: "redpanda:29092"
@@ -171,6 +173,7 @@ services:
     restart: unless-stopped
     command: ["--partitions=0-31"]
     environment:
+      ENV: "production"
       DATABASE_URL: ${DATABASE_URL_1}
       KAFKA_BROKERS: "redpanda:29092"
     ports:
@@ -190,6 +193,7 @@ services:
     restart: unless-stopped
     command: ["--partitions=32-63"]
     environment:
+      ENV: "production"
       DATABASE_URL: ${DATABASE_URL_2}
       KAFKA_BROKERS: "redpanda:29092"
     ports:

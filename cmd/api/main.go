@@ -31,7 +31,12 @@ func setup() (*api.Server, func(), error) {
 		})
 	}
 
-	log := logger.NewLogger(slog.LevelInfo)
+	var log *slog.Logger
+	if os.Getenv("ENV") == "production" {
+		log = logger.NewLogger(slog.LevelInfo)
+	} else {
+		log = logger.NewLogger(slog.LevelDebug)
+	}
 	log.Info("Starting transaction ledger API server")
 
 	numShards, err := strconv.Atoi(os.Getenv("NUM_SHARDS"))

@@ -50,7 +50,7 @@ func (s *Server) handleProto(c fiber.Ctx) error {
 	body := batch.Transactions
 	count = len(body)
 	var records []*kgo.Record
-	if count > 1000 {
+	if count > 10000 {
 		// Handle case where batch size exceeds preallocated pool size
 		if count > 10000 {
 			s.log.ErrorContext(c.Context(), "Request batch size too large", slog.Int("count", count))

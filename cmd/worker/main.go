@@ -81,7 +81,12 @@ func setup(minPart int, maxPart int) (*worker.Coordinator, func(), error) {
 		})
 	}
 
-	log := logger.NewLogger(slog.LevelInfo)
+	var log *slog.Logger
+	if os.Getenv("ENV") == "production" {
+		log = logger.NewLogger(slog.LevelInfo)
+	} else {
+		log = logger.NewLogger(slog.LevelDebug)
+	}
 	log.Info(fmt.Sprintf("Starting transaction ledger worker for partitions %d-%d", minPart, maxPart))
 
 	dbUrl, ok := os.LookupEnv("DATABASE_URL")

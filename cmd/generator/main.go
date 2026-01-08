@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"log"
 	"math/rand"
@@ -74,10 +75,16 @@ func loadAccountIDs(filePath string) ([][]byte, error) {
 }
 
 func main() {
+	var tpsFlag int
+	var durationFlag int
+
+	flag.IntVar(&tpsFlag, "tps", 300, "Target thousands of transactions per second")
+	flag.IntVar(&durationFlag, "d", 30, "Duration of the test in seconds")
+	flag.Parse()
+
 	const (
 		numFiles  = 100
-		batchSize = 1000
-		targetRPS = 420 * 1000 / batchSize
+		batchSize = 10000
 		targetURL = "http://localhost/transactions/proto"
 	)
 
@@ -100,11 +107,12 @@ func main() {
 		return nil
 	}
 
+	targetRPS := tpsFlag * 1000 / batchSize
 	rate := vegeta.Rate{Freq: targetRPS, Per: time.Second}
 	attacker := vegeta.NewAttacker()
 
 	var metrics vegeta.Metrics
-	duration := 30 * time.Second
+	duration := time.Duration(durationFlag) * time.Second
 
 	go func() {
 		<-sigChan

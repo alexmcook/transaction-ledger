@@ -38,6 +38,12 @@ func (c *Coordinator) Run(ctx context.Context) error {
 	}
 
 	numWorkers := len(c.workers)
+	activeSlabs := make([]*RecordBatch, numWorkers)
+
+	for i := range activeSlabs {
+		activeSlabs[i] = recordsPool.Get().(*RecordBatch)
+		activeSlabs[i].Reset()
+	}
 
 	for {
 		fetches := c.client.PollFetches(ctx)
@@ -47,30 +53,34 @@ func (c *Coordinator) Run(ctx context.Context) error {
 			return nil
 		}
 
-		if errs := fetches.Errors(); len(errs) > 0 {
-			for _, f := range errs {
-				c.log.ErrorContext(ctx, "Fetch error", slog.Int("partition", int(f.Partition)), slog.String("topic", f.Topic), slog.Any("error", f.Err))
+		iter := fetches.RecordIter()
+
+		for !iter.Done() {
+			rec := iter.Next()
+			workerID := int(rec.Partition) % numWorkers
+			batch := activeSlabs[workerID]
+
+			dest := &batch.Slab[batch.Count]
+			*dest = *rec
+			copy(batch.ByteSlab[batch.offset:], rec.Value)
+			dest.Value = batch.ByteSlab[batch.offset : batch.offset+len(rec.Value)]
+			batch.offset += len(rec.Value)
+			batch.Count++
+
+			if batch.Count >= 50000 {
+				c.dispatch(workerID, batch)
+				newSlab := recordsPool.Get().(*RecordBatch)
+				activeSlabs[workerID] = newSlab
 			}
 		}
 
-		if fetches.Empty() {
-			continue
-		}
-
-		fetches.EachPartition(func(fp kgo.FetchTopicPartition) {
-			workerID := int(fp.Partition) % numWorkers
-
-			highwater := fp.HighWatermark
-			partiotionStr := strconv.Itoa(int(fp.Partition))
-			kafkaHighWatermark.WithLabelValues(partiotionStr).Set(float64(highwater))
-
-			fpCopy := fp
-			select {
-			case c.workers[workerID].WorkChan <- &fpCopy:
-			case <-ctx.Done():
-				return
+		for i, batch := range activeSlabs {
+			if batch.Count > 0 {
+				c.dispatch(i, batch)
+				activeSlabs[i] = recordsPool.Get().(*RecordBatch)
+				activeSlabs[i].Reset()
 			}
-		})
+		}
 	}
 }
 
@@ -81,4 +91,12 @@ func (c *Coordinator) Stop(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func (c *Coordinator) dispatch(workerID int, batch *RecordBatch) {
+	lastOffset := batch.Slab[batch.Count-1].Offset
+	workerIDStr := strconv.Itoa(workerID)
+	kafkaHighWatermark.WithLabelValues(workerIDStr).Set(float64(lastOffset))
+
+	c.workers[workerID].WorkChan <- batch
 }

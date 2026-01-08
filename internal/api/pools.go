@@ -9,14 +9,14 @@ import (
 
 var recordsPool = sync.Pool{
 	New: func() any {
-		const batchSize = 1000
+		const batchSize = 10000
 		const avgProtoSize = 49
 		const safetyMargin = 15
 		const totalByteSlabSize = batchSize * (avgProtoSize + safetyMargin)
 
 		r := &RecordBatch{
-			Slab:     make([]kgo.Record, 1000),        // Preallocate slab of records for cache locality
-			Pointers: make([]*kgo.Record, 1000),       // Preallocate slice of pointers for Kafka client interface
+			Slab:     make([]kgo.Record, 10000),       // Preallocate slab of records for cache locality
+			Pointers: make([]*kgo.Record, 10000),      // Preallocate slice of pointers for Kafka client interface
 			ByteSlab: make([]byte, totalByteSlabSize), // Preallocate byte slab for protobuf payloads
 			offset:   0,
 		}
@@ -29,7 +29,7 @@ var recordsPool = sync.Pool{
 
 var trPool = sync.Pool{
 	New: func() any {
-		j := make([]TransactionRequest, 1000) // Preallocate for batch size of 1000
+		j := make([]TransactionRequest, 10000) // Preallocate for batch size of 1000
 		return &j
 	},
 }
