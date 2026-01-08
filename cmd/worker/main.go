@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/alexmcook/transaction-ledger/internal/logger"
+	"github.com/alexmcook/transaction-ledger/internal/storage"
 	"github.com/alexmcook/transaction-ledger/internal/worker"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -69,7 +70,7 @@ func getPartitionOffsets(pool *pgxpool.Pool, minPart int, maxPart int) (map[stri
 	return map[string]map[int32]kgo.Offset{"transactions": assignments}, nil
 }
 
-func setup(minPart int, maxPart int) (worker.WriterInterface, func(), error) {
+func setup(minPart int, maxPart int) (*worker.Coordinator, func(), error) {
 	var closures []func()
 	var once sync.Once
 	cleanup := func() {
@@ -88,7 +89,13 @@ func setup(minPart int, maxPart int) (worker.WriterInterface, func(), error) {
 		return nil, cleanup, fmt.Errorf("DATABASE_URL environment variable not set")
 	}
 
-	pool, err := pgxpool.New(context.Background(), dbUrl)
+	config, err := pgxpool.ParseConfig(dbUrl)
+	if err != nil {
+		return nil, cleanup, fmt.Errorf("failed to parse database URL: %v", err)
+	}
+	config.MaxConns = int32((maxPart - minPart + 1) + 4)
+
+	pool, err := pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
 		return nil, cleanup, fmt.Errorf("failed to connect to database: %v", err)
 	}
@@ -126,9 +133,10 @@ func setup(minPart int, maxPart int) (worker.WriterInterface, func(), error) {
 	defer cancel()
 	err = ensureTopicExists(topicCtx, client, "transactions")
 
-	writer := worker.NewEfficientWriter(log, pool, client)
+	dbStore := storage.NewPostgresStore(log, pool)
+	coordinator := worker.NewCoordinator(context.Background(), maxPart-minPart+1, log, dbStore, client)
 
-	return writer, cleanup, nil
+	return coordinator, cleanup, nil
 }
 
 func parsePartitionRange(partitionRange string) (int, int, error) {
@@ -170,7 +178,7 @@ func main() {
 		http.ListenAndServe(":8080", nil)
 	}()
 
-	writer, cleanup, err := setup(minPartition, maxPartition)
+	coordinator, cleanup, err := setup(minPartition, maxPartition)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to set up server: %v\n", err)
 		cleanup()
@@ -178,9 +186,10 @@ func main() {
 	}
 
 	go func() {
-		if err := writer.Start(ctx); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to start worker: %v\n", err)
-			stop()
+		if err := coordinator.Run(ctx); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to start coordinator: %v\n", err)
+			coordinator.Stop(ctx)
+			cleanup()
 		}
 	}()
 
@@ -190,7 +199,7 @@ func main() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := writer.Stop(shutdownCtx); err != nil {
+	if err := coordinator.Stop(shutdownCtx); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to stop worker: %v\n", err)
 	}
 

@@ -11,9 +11,6 @@ CREATE TABLE IF NOT EXISTS transactions (
   created_at TIMESTAMPTZ NOT NULL
 );
 
--- Unlogged staging tables for bulk data ingestion
-CREATE UNLOGGED TABLE IF NOT EXISTS staging (LIKE transactions INCLUDING ALL);
-
 -- Table to manually track Kafka offsets for each partition
 CREATE TABLE IF NOT EXISTS kafka_offsets (
   partition_id INT PRIMARY KEY,
