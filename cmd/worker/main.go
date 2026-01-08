@@ -69,7 +69,7 @@ func getPartitionOffsets(pool *pgxpool.Pool, minPart int, maxPart int) (map[stri
 	return map[string]map[int32]kgo.Offset{"transactions": assignments}, nil
 }
 
-func setup(minPart int, maxPart int) (*worker.EfficientWriter, func(), error) {
+func setup(minPart int, maxPart int) (worker.WriterInterface, func(), error) {
 	var closures []func()
 	var once sync.Once
 	cleanup := func() {
