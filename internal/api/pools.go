@@ -3,6 +3,7 @@ package api
 import (
 	"sync"
 
+	pb "github.com/alexmcook/transaction-ledger/proto"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
@@ -30,5 +31,11 @@ var trPool = sync.Pool{
 	New: func() any {
 		j := make([]TransactionRequest, 1000) // Preallocate for batch size of 1000
 		return &j
+	},
+}
+
+var txBatchPool = sync.Pool{
+	New: func() any {
+		return &pb.TransactionBatch{}
 	},
 }

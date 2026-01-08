@@ -11,6 +11,7 @@ func (s *Server) registerRoutes() {
 
 	s.app.Post("/transactions/json", s.handleJSON)
 	s.app.Post("/transactions/effjson", s.handleEfficientJSON)
+	s.app.Post("/transactions/proto", s.handleProto)
 }
 
 func (s *Server) handleHealth(c fiber.Ctx) error {
