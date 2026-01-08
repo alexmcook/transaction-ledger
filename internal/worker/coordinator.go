@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"log/slog"
+	"strconv"
 
 	"github.com/alexmcook/transaction-ledger/internal/storage"
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -14,15 +15,17 @@ type Coordinator struct {
 	workers []*MultiWriter
 }
 
-func NewCoordinator(ctx context.Context, numWorkers int, log *slog.Logger, db *storage.PostgresStore, client *kgo.Client) *Coordinator {
+func NewCoordinator(ctx context.Context, minPart int, maxPart int, log *slog.Logger, db *storage.PostgresStore, client *kgo.Client) *Coordinator {
+	numWorkers := maxPart - minPart + 1
+
 	c := &Coordinator{
 		log:     log,
 		client:  client,
 		workers: make([]*MultiWriter, numWorkers),
 	}
 
-	for i := range numWorkers {
-		c.workers[i] = NewMultiWriter(i, log, db)
+	for i := range c.workers {
+		c.workers[i] = NewMultiWriter(minPart+i, log, db)
 	}
 
 	return c
@@ -56,6 +59,11 @@ func (c *Coordinator) Run(ctx context.Context) error {
 
 		fetches.EachPartition(func(fp kgo.FetchTopicPartition) {
 			workerID := int(fp.Partition) % numWorkers
+
+			highwater := fp.HighWatermark
+			partiotionStr := strconv.Itoa(int(fp.Partition))
+			kafkaHighWatermark.WithLabelValues(partiotionStr).Set(float64(highwater))
+
 			fpCopy := fp
 			select {
 			case c.workers[workerID].WorkChan <- &fpCopy:

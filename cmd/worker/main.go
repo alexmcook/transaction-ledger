@@ -137,7 +137,7 @@ func setup(minPart int, maxPart int) (*worker.Coordinator, func(), error) {
 	err = ensureTopicExists(topicCtx, client, "transactions")
 
 	dbStore := storage.NewPostgresStore(log, pool)
-	coordinator := worker.NewCoordinator(context.Background(), maxPart-minPart+1, log, dbStore, client)
+	coordinator := worker.NewCoordinator(context.Background(), minPart, maxPart, log, dbStore, client)
 
 	return coordinator, cleanup, nil
 }

@@ -12,7 +12,7 @@ type EfficientTransactionSource struct {
 	Txs       []pb.Transaction
 	idx       int
 	Count     int
-	Offsets   map[int32]int64
+	Offset    int64
 	Timestamp time.Time
 
 	idBuf  pgtype.UUID
@@ -27,11 +27,10 @@ type EfficientTransactionSource struct {
 
 func NewEfficientTransactionSource() *EfficientTransactionSource {
 	return &EfficientTransactionSource{
-		Txs:     make([]pb.Transaction, 50000),
-		idx:     -1,
-		Offsets: make(map[int32]int64),
-		buf:     make([]any, 4),
-		salt:    uint32(time.Now().UnixNano()),
+		Txs:  make([]pb.Transaction, 50000),
+		idx:  -1,
+		buf:  make([]any, 4),
+		salt: uint32(time.Now().UnixNano()),
 	}
 }
 
@@ -65,9 +64,7 @@ func (ts *EfficientTransactionSource) Err() error {
 
 func (ts *EfficientTransactionSource) Reset() {
 	ts.idx = -1
-	for k := range ts.Offsets {
-		delete(ts.Offsets, k)
-	}
+	ts.Offset = -1
 }
 
 func (ts *EfficientTransactionSource) EncodeRow(buf []byte, idx int, now uint64) []byte {

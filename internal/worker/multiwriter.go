@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"sync"
 	"time"
 
@@ -65,6 +66,7 @@ func (w *MultiWriter) swap(currentBuf *storage.EfficientTransactionSource) *stor
 }
 
 func (w *MultiWriter) startWorker(ctx context.Context) {
+	workerIdStr := strconv.Itoa(w.id)
 	currentBuf := w.bufA
 	defer w.workerWg.Done()
 	var writeWg sync.WaitGroup
@@ -81,8 +83,8 @@ func (w *MultiWriter) startWorker(ctx context.Context) {
 			batch := records[pos:end]
 			for i, record := range batch {
 				currentBuf.Txs[i].UnmarshalVT(record.Value)
-				currentBuf.Offsets[record.Partition] = record.Offset
 			}
+			currentBuf.Offset = batch[len(batch)-1].Offset
 			currentBuf.Count = len(batch)
 
 			w.log.DebugContext(ctx, "Staging batch", slog.Int("count", currentBuf.Count), slog.Int("worker_id", w.id))
@@ -93,11 +95,15 @@ func (w *MultiWriter) startWorker(ctx context.Context) {
 				defer writeWg.Done()
 				for {
 					startBatch := time.Now()
-					if err := w.db.Transactions().EfficientWriteBatch(ctx, buf); err != nil {
+					err := w.db.Transactions().EfficientWriteBatch(ctx, w.id, buf)
+					if err != nil {
 						w.log.ErrorContext(ctx, "Failed to write batch", slog.Int("count", buf.Count), slog.Any("error", err), slog.Int("worker_id", w.id))
 						time.Sleep(5 * time.Second)
 						continue
 					}
+
+					kafkaCommittedOffset.WithLabelValues(workerIdStr).Set(float64(buf.Offset))
+
 					dbWriteLatency.Observe(time.Since(startBatch).Seconds())
 					transactionsStaged.Add(float64(buf.Count))
 					break

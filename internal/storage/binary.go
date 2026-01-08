@@ -5,14 +5,12 @@ import (
 	"context"
 	"encoding/binary"
 	"time"
-
-	"github.com/jackc/pgx/v5"
 )
 
 /*
 ** Efficient WriteBatch implementation, utilizing zero-copy techniques to direct binary copy into staging table
  */
-func (ts *TransactionStore) EfficientWriteBatch(ctx context.Context, source *EfficientTransactionSource) error {
+func (ts *TransactionStore) EfficientWriteBatch(ctx context.Context, workerId int, source *EfficientTransactionSource) error {
 	now := time.Now()
 
 	tx, err := ts.pool.Begin(ctx)
@@ -59,15 +57,8 @@ func (ts *TransactionStore) EfficientWriteBatch(ctx context.Context, source *Eff
 		return err
 	}
 
-	batchUpdate := &pgx.Batch{}
 	const kafkaOffset = `UPDATE kafka_offsets SET last_offset = $1, updated_at = $2 WHERE partition_id = $3`
-	for partitionID, lastOffset := range source.Offsets {
-		batchUpdate.Queue(kafkaOffset, lastOffset, now, partitionID)
-	}
-	br := tx.SendBatch(ctx, batchUpdate)
-	if err := br.Close(); err != nil {
-		return err
-	}
+	_, err = tx.Exec(ctx, kafkaOffset, source.Offset, now, workerId)
 
 	return tx.Commit(ctx)
 }

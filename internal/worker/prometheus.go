@@ -22,4 +22,14 @@ var (
 		Help:    "Duration of transaction processing by the worker",
 		Buckets: []float64{0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 2.5, 5.0},
 	})
+
+	kafkaHighWatermark = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "worker_kafka_high_watermark",
+		Help: "High watermark of the Kafka consumer for each partition",
+	}, []string{"partition"})
+
+	kafkaCommittedOffset = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "worker_kafka_committed_offset",
+		Help: "Committed offset of the Kafka consumer for each partition",
+	}, []string{"partition"})
 )
