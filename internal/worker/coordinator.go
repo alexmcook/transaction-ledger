@@ -6,22 +6,30 @@ import (
 	"strconv"
 
 	"github.com/alexmcook/transaction-ledger/internal/storage"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
 type Coordinator struct {
-	log     *slog.Logger
-	client  *kgo.Client
-	workers []*MultiWriter
+	log         *slog.Logger
+	client      *kgo.Client
+	workers     []*MultiWriter
+	writeBehind *WriteBehindWorker
 }
 
-func NewCoordinator(ctx context.Context, minPart int, maxPart int, log *slog.Logger, db *storage.PostgresStore, client *kgo.Client) *Coordinator {
+func NewCoordinator(ctx context.Context, minPart int, maxPart int, log *slog.Logger, db *storage.PostgresStore, client *kgo.Client, pool *pgxpool.Pool) *Coordinator {
 	numWorkers := maxPart - minPart + 1
 
 	c := &Coordinator{
 		log:     log,
 		client:  client,
 		workers: make([]*MultiWriter, numWorkers),
+		writeBehind: NewWriteBehindWorker(
+			log,
+			pool,
+			minPart,
+			maxPart,
+		),
 	}
 
 	for i := range c.workers {
@@ -36,6 +44,8 @@ func (c *Coordinator) Run(ctx context.Context) error {
 	for _, w := range c.workers {
 		w.Start(workerCtx)
 	}
+
+	c.writeBehind.Start(workerCtx)
 
 	numWorkers := len(c.workers)
 	activeSlabs := make([]*RecordBatch, numWorkers)
@@ -90,10 +100,15 @@ func (c *Coordinator) Stop(ctx context.Context) error {
 			return err
 		}
 	}
+	if err := c.writeBehind.Stop(ctx); err != nil {
+		return err
+	}
 	return nil
 }
 
 func (c *Coordinator) dispatch(workerID int, batch *RecordBatch) {
+	c.log.Debug("Dispatching batch", slog.Int("worker_id", workerID), slog.Int("count", batch.Count))
+
 	lastOffset := batch.Slab[batch.Count-1].Offset
 	workerIDStr := strconv.Itoa(workerID)
 	kafkaHighWatermark.WithLabelValues(workerIDStr).Set(float64(lastOffset))

@@ -109,7 +109,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	uuids, err := makeUUIDs(1000)
+	uuids, err := makeUUIDs(10000)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error generating UUIDs: %v\n", err)
 		os.Exit(1)
@@ -125,7 +125,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = writeToFile("data/ids.csv", uuids); err != nil {
+	if err = writeToFile("data/account_ids.csv", uuids); err != nil {
 		fmt.Fprintf(os.Stderr, "Error writing UUIDs to file: %v\n", err)
 		os.Exit(1)
 	}

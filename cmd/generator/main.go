@@ -84,7 +84,7 @@ func main() {
 
 	const (
 		numFiles  = 100
-		batchSize = 10000
+		batchSize = 5000
 		targetURL = "http://localhost/transactions/proto"
 	)
 
@@ -120,7 +120,7 @@ func main() {
 		attacker.Stop()
 	}()
 
-	fmt.Printf("Starting attack: %d RPS to %s\n", targetRPS, targetURL)
+	fmt.Printf("Starting attack: %d TPS to %s\n", targetRPS*batchSize, targetURL)
 
 	for res := range attacker.Attack(targeter, rate, duration, "Transaction Load Test") {
 		metrics.Add(res)

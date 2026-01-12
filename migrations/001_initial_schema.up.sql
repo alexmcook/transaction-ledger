@@ -4,6 +4,13 @@ CREATE TABLE IF NOT EXISTS accounts (
   created_at TIMESTAMPTZ NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS transactions_history (
+  id UUID PRIMARY KEY,
+  account_id UUID NOT NULL,
+  amount BIGINT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL
+);
+
 DO $$
 BEGIN
   FOR i IN 0..63 LOOP
@@ -14,9 +21,6 @@ BEGIN
         amount BIGINT NOT NULL,
         created_at TIMESTAMPTZ NOT NULL
       );
-
-      CREATE INDEX IF NOT EXISTS idx_transactions_%s_account_id
-      ON transactions_%s (account_id);
 
       CREATE UNLOGGED TABLE IF NOT EXISTS staging_%s (
         id UUID,

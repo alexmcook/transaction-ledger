@@ -70,7 +70,7 @@ services:
     command:
       - redpanda start
       - --overprovisioned
-      - --smp 1 # n cores
+      - --smp 2 # n cores
       - --kafka-addr internal://0.0.0.0:29092,external://0.0.0.0:9092
       - --advertise-kafka-addr internal://redpanda:29092,external://localhost:9092
       - --set redpanda.auto_create_topics_enabled=true
@@ -173,7 +173,7 @@ services:
     restart: unless-stopped
     command: ["--partitions=0-31"]
     environment:
-      ENV: "production"
+      # ENV: "production"
       DATABASE_URL: ${DATABASE_URL_1}
       KAFKA_BROKERS: "redpanda:29092"
     ports:
@@ -193,7 +193,7 @@ services:
     restart: unless-stopped
     command: ["--partitions=32-63"]
     environment:
-      ENV: "production"
+      # ENV: "production"
       DATABASE_URL: ${DATABASE_URL_2}
       KAFKA_BROKERS: "redpanda:29092"
     ports:
