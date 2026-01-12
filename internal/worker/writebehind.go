@@ -108,15 +108,16 @@ func (w *WriteBehindWorker) writeBehind(i int) error {
 		return fmt.Errorf("failed to update accounts for partition %d: %v", i, err)
 	}
 
-	archive := fmt.Sprintf(`
-		INSERT INTO transactions_history (id, account_id, amount, created_at)
-		SELECT id, account_id, amount, created_at FROM transactions_%d
-		ON CONFLICT (id) DO NOTHING;
-	`, i)
-	_, err = tx.Exec(timeoutCtx, archive)
-	if err != nil {
-		return fmt.Errorf("failed to archive transactions for partition %d: %v", i, err)
-	}
+	// Need a better archive strategy
+	// archive := fmt.Sprintf(`
+	// 	INSERT INTO transactions_history (id, account_id, amount, created_at)
+	// 	SELECT id, account_id, amount, created_at FROM transactions_%d
+	// 	ON CONFLICT (id) DO NOTHING;
+	// `, i)
+	// _, err = tx.Exec(timeoutCtx, archive)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to archive transactions for partition %d: %v", i, err)
+	// }
 
 	clear := fmt.Sprintf(`TRUNCATE transactions_%d`, i)
 	_, err = tx.Exec(timeoutCtx, clear)

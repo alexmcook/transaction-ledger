@@ -27,12 +27,6 @@ func (ts *TransactionStore) EfficientWriteBatch(ctx context.Context, workerId in
 	}
 	defer tx.Rollback(ctx)
 
-	// Clear staging table at start of transaction to minimize locks
-	_, err = tx.Exec(ctx, ts.truncateQueries[workerId])
-	if err != nil {
-		return err
-	}
-
 	bPtr := bufPool.Get().(*[]byte)
 	buf := (*bPtr)[:0]
 	defer func() {
@@ -58,6 +52,11 @@ func (ts *TransactionStore) EfficientWriteBatch(ctx context.Context, workerId in
 	}
 
 	_, err = tx.Exec(ctx, ts.mergeQueries[workerId])
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(ctx, ts.truncateQueries[workerId])
 	if err != nil {
 		return err
 	}

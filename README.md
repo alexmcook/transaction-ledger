@@ -9,30 +9,50 @@ The goal of this project is to serve as a transaction ledger that receives messa
 
 ## Data Flow
 ```mermaid
-graph LR
-    subgraph Ingress
-    A[Client] -- JSON Batch --> B[Go API]
+graph TB
+    subgraph L1 [Level 1: Ingress & Buffering]
+        direction LR
+        A[Client] -- "JSON Batch (1-10k)" --> B[Go API]
+        B -- "Protobuf" --> C{Redpanda<br/>64 Partitions}
     end
-    
-    subgraph Buffer
-    B -- Protobuf --> C{Redpanda<br/>128 Partitions}
+
+    subgraph L2 [Level 2: Parallel Egress]
+        direction TB
+        C --> D[Orchestrator]
+        D --> E1[Writer 1]
+        D --> E2[Writer 2]
+        D --> En[Writer N]
     end
-    
-    subgraph Egress Worker
-    C --> D[Orchestrator]
-    D --> E1[Writer 1]
-    D --> E2[Writer 2]
-    D --> E3[Writer N]
+
+    subgraph L3 [Level 3: Persistent Storage]
+        direction LR
+        E1 & E2 & En -- "Binary COPY" --> F[(Postgres Staging)]
+        F -- "Atomic Offset Commit" --> G[(Transaction Ledger)]
     end
-    
-    subgraph Persistence
-    E1 & E2 & E3 -- Binary COPY --> F[(Postgres Staging)]
-    F -- Atomic Checkpoint --> G[(Final Ledger)]
+
+    subgraph L4 [Level 4: Async Update]
+        G -- "Timer-based Merge" --> H[(Accounts Table)]
     end
 ```
 
 ## Project Structure
-TODO: tree
+```
+.
+├── cmd
+│   ├── api                                 # API server
+│   ├── generator                           # Load testing tool
+│   ├── seeder                              # Database seeding tool
+│   └── worker                              # Database writer service
+└── internal
+    ├── api
+    │   ├── efficientjson.go                # Sonic JSON parsing, main endpoint used
+    ├── integration
+    │   └── integrationtest.go              # Integration test to validate end-to-end functionality
+    ├── storage
+    │   ├── binary.go                       # Postgres binary copy protocol implementation
+    │   ├── efficienttransactionsource.go   # Efficient Protobuf traversal to avoid unmarshal cost
+    └── worker
+```
 
 ## Achitecture Decisions
 #### Key Wins
@@ -59,16 +79,6 @@ To achieve EOS, I treat the database as the source of truth. Redpanda guarantees
 
 #### General
 I heavily used `sync.Pool` throughout the program to minimize churn from creating objects. From my flame graph analysis, I've effectively eliminated all large scale GC pressure happening on the hot path from my own code.
-</details>
-
-## Benchmarking
-
-TODO: flamegraph1.png
-TODO: flamegraph2.png
-TODO: grafana.png
-
-<details><summary><b>Narrative</b></summary>
-I've set up a dashboard with Prometheus and Grafana to track message throughput. I run benchmarks with work and a lua script to generate payloads very efficiently to send to the api. Since I require unique UUIDs for the transaction to come from the client, this makes it difficult to efficiently load test especially on a single machine. To mitigate this, for testing I have implemented a salt to modify the UUIDs immediately before writing them to postgres, guaranteeing uniqueness. This allows me to drastically reduce the amount of CPU used from the load tester while still handling data that is travelling realistically.
 </details>
 
 ## Future Considerations
